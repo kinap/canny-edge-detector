@@ -13,9 +13,9 @@ source magick.env
 ```
 
 # Compilation
-Binaries will be located in the bin/ directory. Ensure all dependencies are installed and that magick.env has been sourced. 
+Binaries will be located in the bin/ directory.
 
-Then run:
+Ensure all dependencies have installed successfully, then run:
 ```
 make
 ```
@@ -27,4 +27,9 @@ For command line argument specifics, use the --help option on the generated bina
 To run with default arguments:
 ```
 make run
+```
+
+If you plan to run the binary directly (i.e. not using the makefile), ensure you source magick.env:
+```
+source magick.env
 ```

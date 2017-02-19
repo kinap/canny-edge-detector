@@ -1,10 +1,13 @@
-# Magick++ settings
 CURDIR := $(shell pwd)
 RUNDIR := $(CURDIR)/bin
-MAGDIR := $(CURDIR)/third_party/usr/bin
-CFG_TOOL := $(MAGDIR)/Magick++-config
-IM_CXXFLAGS := $(shell $(CFG_TOOL) --cxxflags --cppflags)
-IM_LDFLAGS := $(shell $(CFG_TOOL) --ldflags --libs)
+
+# Magick++ settings
+MAGDIR := $(CURDIR)/third_party/usr
+CFG_TOOL := $(MAGDIR)/bin/Magick++-config
+PKG_CONFIG_PATH := $(MAGDIR)/lib/pkgconfig
+LD_LIBRARY_PATH := $(MAGDIR)/lib
+IM_CXXFLAGS := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(CFG_TOOL) --cxxflags --cppflags)
+IM_LDFLAGS := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(CFG_TOOL) --ldflags --libs)
 
 # Project settings
 PROJ = edge_detect
@@ -59,4 +62,4 @@ clean:
 	rm -f $(DEPS)
 
 run:
-	$(RUNDIR)/$(PROJ)
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(RUNDIR)/$(PROJ)
