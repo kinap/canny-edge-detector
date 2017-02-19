@@ -20,7 +20,7 @@ static char doc[] =
 static struct argp_option options[] = {
     {"input-file", 'i', "FILENAME", 0, "Input image filename.", 0},
     {"output-file", 'o', "FILENAME", 0, "Output image filename.", 0},
-    {"serialize", 's', 0, 0, "Execute serially on host CPU (GPU otherwise).", 0},
+    {"serial", 's', 0, 0, "Execute serially on host CPU (GPU otherwise).", 0},
     {0, 0, 0, 0, 0, 0}
 };
 
@@ -28,7 +28,7 @@ static struct argp_option options[] = {
 struct arguments {
     std::string inFile;
     std::string outFile;
-    bool gpgpu;
+    bool serial;
 };
 
 /* Parser */
@@ -45,7 +45,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             args->outFile = arg;
             break;
         case 's':
-            args->gpgpu = false;
+            args->serial = true;
             break;
         default:
             return ARGP_ERR_UNKNOWN;

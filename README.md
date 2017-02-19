@@ -13,12 +13,18 @@ source magick.env
 ```
 
 # Compilation
-Ensure all dependencies are installed first. Binaries will be located in the bin/ directory.
+Binaries will be located in the bin/ directory. Ensure all dependencies are installed and that magick.env has been sourced. 
+
+Then run:
 ```
 make
 ```
 
 # Execution
-The edge detector supports serial execution on a host CPU, or paralell execution on an NVIDIA GPU.
-
+The edge detector supports serial execution on a host CPU, or parallel execution on an NVIDIA GPU.
 For command line argument specifics, use the --help option on the generated binary.
+
+To run with default arguments:
+```
+make run
+```

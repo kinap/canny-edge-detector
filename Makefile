@@ -1,5 +1,6 @@
 # Magick++ settings
 CURDIR := $(shell pwd)
+RUNDIR := $(CURDIR)/bin
 MAGDIR := $(CURDIR)/third_party/usr/bin
 CFG_TOOL := $(MAGDIR)/Magick++-config
 IM_CXXFLAGS := $(shell $(CFG_TOOL) --cxxflags --cppflags)
@@ -10,7 +11,7 @@ PROJ = edge_detect
 CC = g++
 CFLAGS = $(IM_CXXFLAGS) -std=c++11 -Wall -Werror
 DEPOPTS = -std=c++11 -MM
-INC = -I$(CURDIR)/src
+INC = -I$(CURDIR)/inc
 
 #-- Do not edit below this line --
 
@@ -39,7 +40,7 @@ DEPS = $(patsubst %.cpp, %.d, $(SOURCE_FILES))
 all: $(DEPS) $(PROJ)
 
 $(PROJ): $(OBJS)
-	$(CC) -o $(CURDIR)/bin/$(PROJ) $(OBJS) $(INC) $(IM_LDFLAGS)
+	$(CC) -o $(RUNDIR)/$(PROJ) $(OBJS) $(INC) $(IM_LDFLAGS)
 
 # Include any dependencies
 ifneq "$(strip $(DEPS))" ""
@@ -53,6 +54,9 @@ endif
 # Clean
 .PHONY: clean
 clean:
-	rm -f $(PROJ) $(OBJS)
+	rm -f $(PROJ)
+	rm -f $(OBJS)
 	rm -f $(DEPS)
 
+run:
+	$(RUNDIR)/$(PROJ)
