@@ -2,7 +2,8 @@
 Canny edge detector written in CUDA C++.
 
 # Dependencies
-- Magick++ image library. 
+- CUDA GPGPU framework
+- Magick++ image library
 
 ## Magick++ Installation
 ```
@@ -12,7 +13,12 @@ source magick.env
 ```
 
 # Compilation
-Make sure all dependencies are installed first. Binaries will be located in the bin/ directory.
+Ensure all dependencies are installed first. Binaries will be located in the bin/ directory.
 ```
 make
 ```
+
+# Execution
+The edge detector supports serial execution on a host CPU, or paralell execution on an NVIDIA GPU.
+
+For command line argument specifics, use the --help option on the generated binary.

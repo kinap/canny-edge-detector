@@ -9,7 +9,7 @@ cd src
 curl -L https://www.imagemagick.org/download/ImageMagick.tar.gz | tar zx
 
 # configure
-cd ImageMagick-7.0.4-10
+cd $(ls -d */ | head -n 1)
 ./configure --prefix=$TOP/usr
 
 # build
