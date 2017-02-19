@@ -1,8 +1,8 @@
 
 #include <iostream>
-#include <Magick++.h>
 #include "ced_error.h"
 #include "ced_args.h"
+#include "imgMgr.hpp"
 #include "cannyEdgeDetector.hpp"
 
 int main(int argc, char** argv)
@@ -20,16 +20,13 @@ int main(int argc, char** argv)
         exit(rc);
     }
 
+    /* Instantiate our image manager */
+    ImgMgr img_mgr(*argv);
+    img_mgr.test("test.bmp");
+
+    /* Instantiate our edge detector */
     CannyEdgeDetector ced;
     ced.detect_edges(args.serial);
 
-    /* Connect to Magick++ image handler */
-    Magick::InitializeMagick(*argv);
-
-    /* test code */
-    Magick::Image image("100x100", "white");
-    image.pixelColor(49,49,"red");
-    image.write("test.bmp");
-    
     return CED_SUCCESS;
 }
