@@ -25,13 +25,12 @@ class ImgMgr
 
         unsigned getPixelCount();
         void read_image(const std::string &in_filename);
-        //void write_image(const std::string &out_filename);
+        void write_image(const std::string &out_filename);
 
         void test(const std::string &out_filename);
 
     private:
         int m_img_width;
         int m_img_height;
-
         pixel_t *m_pixels;
 };
