@@ -31,5 +31,6 @@ make run
 
 If you plan to run the binary directly (i.e. not using the makefile), ensure you source magick.env:
 ```
+cd third_party
 source magick.env
 ```
