@@ -7,12 +7,37 @@
 #include <memory>
 #include <Magick++.h>
 
-typedef struct {
+struct pixel_t {
     uint16_t red;
     uint16_t green;
     uint16_t blue;
     uint16_t alpha;
-} pixel_t;
+
+    /* Overloaded operators for comparing pixels */
+    bool operator==(const pixel_t &rhs) {
+        return (red == rhs.red);
+    }
+
+    bool operator!=(const pixel_t &rhs) {
+        return (red != rhs.red);
+    }
+
+    bool operator>(const pixel_t &rhs) {
+        return (red > rhs.red);
+    }
+
+    bool operator>=(const pixel_t &rhs) {
+        return (red >= rhs.red);
+    }
+
+    bool operator<(const pixel_t &rhs) {
+        return (red < rhs.red);
+    }
+
+    bool operator<=(const pixel_t &rhs) {
+        return (red <= rhs.red);
+    }
+};
 
 ///
 /// \brief Image manager class
