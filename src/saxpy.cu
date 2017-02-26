@@ -16,6 +16,7 @@ void test_saxpy(void) {
     /* allocate host memory */
     x = (float*)malloc(n*sizeof(float));
     y = (float*)malloc(n*sizeof(float));
+    /* allocate device memory */
     cudaMalloc(&d_x, n*sizeof(float));
     cudaMalloc(&d_y, n*sizeof(float));
 

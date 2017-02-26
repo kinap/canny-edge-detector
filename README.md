@@ -1,8 +1,9 @@
 # Canny Edge Dectector
-Canny edge detector written in CUDA C++.
+Canny edge detector written in CUDA C++. Provides both serial and GPU implementations.
 
 # Dependencies
-- CUDA GPGPU framework
+- Linux
+- CUDA GPGPU framework (nvcc)
 - Magick++ image library
 
 ## Magick++ Installation
@@ -12,7 +13,7 @@ source ./third_party/magick.env
 ```
 
 # Compilation
-Binaries will be located in the bin/ directory.
+Binaries will be located in the bin/ directory. All CPU code objects are compiled with g++. CUDA kernel objects are compiled with nvcc. The final executable is also compiled with nvcc.
 
 Ensure all dependencies have installed successfully, then run:
 ```
@@ -41,7 +42,11 @@ source third_party/magick.env
 
 # compile with debug symbols and statements
 make DEBUG=1 -j4
+```
 
+## Debugging Host code
+
+```
 # run GNU Debugger
 gdb ./bin/edge_detect
 
@@ -52,3 +57,7 @@ gdb ./bin/edge_detect
 > n # execute next line
 > step # step down into next line (inside functions, etc.)
 ```
+
+## Debugging GPU code
+
+TBD
