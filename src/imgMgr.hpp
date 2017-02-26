@@ -14,6 +14,7 @@ struct pixel_t {
     uint16_t alpha;
 
     /* Overloaded operators for comparing pixels */
+    // TODO re-evaluate only using red channel here
     bool operator==(const pixel_t &rhs) {
         return (red == rhs.red);
     }
@@ -54,6 +55,7 @@ class ImgMgr
 
         unsigned getImgWidth();
         unsigned getImgHeight();
+        unsigned getChannelDepth();
         unsigned getPixelCount();
         pixel_t* getPixelHandle();
 
@@ -65,6 +67,7 @@ class ImgMgr
     private:
         int m_img_width;
         int m_img_height;
+        int m_channel_depth;
         pixel_t *m_pixels;
 };
 

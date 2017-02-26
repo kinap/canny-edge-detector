@@ -8,7 +8,7 @@
 /// Initializes Magick++ image library and member variables.
 /// 
 ImgMgr::ImgMgr(char *argv)
-: m_img_width(0), m_img_height(0), m_pixels(nullptr)
+: m_img_width(0), m_img_height(0), m_channel_depth(0), m_pixels(nullptr)
 {
     /* Initialize our image library */
     Magick::InitializeMagick(argv);
@@ -39,6 +39,14 @@ unsigned ImgMgr::getImgWidth(void)
 unsigned ImgMgr::getImgHeight(void)
 {
     return m_img_height;
+}
+
+///
+/// \brief Return image channel depth
+///
+unsigned ImgMgr::getChannelDepth(void)
+{
+    return m_channel_depth;
 }
 
 ///
@@ -73,14 +81,21 @@ void ImgMgr::read_image(const std::string &in_filename)
         /* populate internal data structures */
         m_img_width = img.rows();
         m_img_height = img.columns();
-
-        m_pixels = new pixel_t[getPixelCount()]; // free'd in destructor
+        m_channel_depth = img.depth();
+        
+        if (nullptr == m_pixels) {
+            m_pixels = new pixel_t[getPixelCount()]; // free'd in destructor
+        } else {
+            delete [] m_pixels;
+            m_pixels = new pixel_t[getPixelCount()]; // free'd in destructor
+        }
         assert(nullptr != m_pixels);
 
         #ifdef DEBUG
         std::cout << "Image: " << in_filename << std::endl;
         std::cout << "Resolution: " << m_img_width << "x" << m_img_height << std::endl;
         std::cout << "Pixel channels: " << img.channels() << std::endl;
+        std::cout << "Channel depth: " << m_channel_depth << std::endl;
         #endif
 
         /* extract the pixels from the image, put them in a format we can export portably */
