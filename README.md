@@ -7,9 +7,8 @@ Canny edge detector written in CUDA C++.
 
 ## Magick++ Installation
 ```
-cd third_party
-./install_magick++.sh
-source magick.env
+./third_party/install_magick++.sh
+source ./third_party/magick.env
 ```
 
 # Compilation
@@ -31,16 +30,14 @@ make run
 
 If you plan to run the binary directly (i.e. not using the makefile), ensure you source magick.env:
 ```
-cd third_party
-source magick.env
+source third_party/magick.env
 ```
 
 # Debug
 To debug, you'll need to compile with the debug option and run manually.
 ```
 # source environment for manual cmd line execution
-cd third_party
-source magick.env
+source third_party/magick.env
 
 # compile with debug symbols and statements
 make DEBUG=1 -j4
