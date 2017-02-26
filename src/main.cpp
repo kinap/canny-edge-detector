@@ -22,7 +22,8 @@ int main(int argc, char** argv)
 
     /* Instantiate our image manager */
     ImgMgr img_mgr(*argv);
-    img_mgr.test("test.bmp");
+    img_mgr.read_image(args.inFile);
+    img_mgr.write_image(args.outFile);
 
     /* Instantiate our edge detector */
     CannyEdgeDetector ced;

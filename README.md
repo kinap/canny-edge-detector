@@ -17,7 +17,7 @@ Binaries will be located in the bin/ directory.
 
 Ensure all dependencies have installed successfully, then run:
 ```
-make
+make -j4
 ```
 
 # Execution
@@ -33,4 +33,25 @@ If you plan to run the binary directly (i.e. not using the makefile), ensure you
 ```
 cd third_party
 source magick.env
+```
+
+# Debug
+To debug, you'll need to compile with the debug option and run manually.
+```
+# source environment for manual cmd line execution
+cd third_party
+source magick.env
+
+# compile with debug symbols and statements
+make DEBUG=1 -j4
+
+# run GNU Debugger
+gdb ./bin/edge_detect
+
+# once in the gdb terminal, set breakpoints, arguments, etc.
+> set args <cmd line args>
+> b <file.extension>:<line number> # set break point
+> run # run program until breakpoint
+> n # execute next line
+> step # step down into next line (inside functions, etc.)
 ```

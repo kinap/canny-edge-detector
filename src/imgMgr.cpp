@@ -1,9 +1,10 @@
 
 #include <iostream>
+#include <assert.h>
 #include "imgMgr.hpp"
 
 ImgMgr::ImgMgr(char *argv)
-: m_pixels(nullptr)
+: m_img_width(0), m_img_height(0), m_pixels(nullptr)
 {
     /* Initialize our image library */
     Magick::InitializeMagick(argv);
@@ -32,18 +33,24 @@ void ImgMgr::read_image(const std::string &in_filename)
         m_img_height = img.columns();
 
         m_pixels = new pixel_t[getPixelCount()]; // free'd in destructor
-        
+        assert(nullptr != m_pixels);
+
+        #ifdef DEBUG
+        std::cout << "Image: " << in_filename << std::endl;
+        std::cout << "Resolution: " << m_img_width << "x" << m_img_height << std::endl;
+        std::cout << "Pixel channels: " << img.channels() << std::endl;
+        #endif
+
         /* extract the pixels from the image, put them in a format we can export portably */
-        Magick::Pixels view(img);
-        /* Magic::Pixels.get() returns an array of pixel channels of type Quantum */
-        Magick::Quantum *pixels = view.get(0, 0, img.columns(), img.rows());
+        Magick::Quantum *pixels = img.getPixels(0, 0, img.columns(), img.rows());
         for (unsigned i = 0; i < img.rows(); i++) {
             for (unsigned j = 0; j < img.columns(); j++) {
-                unsigned idx = i * img.columns() + j; // remap to a flat buffer of pixel structs
-                m_pixels[idx].red = *pixels++;
+                /* remap to a flat buffer of pixel structs */
+                unsigned idx = img.columns() * i + j; 
+                m_pixels[idx].red   = *pixels++;
                 m_pixels[idx].green = *pixels++;
-                m_pixels[idx].blue = *pixels++;
-                // Alpha isn't returned from view.get(), do we need it? TODO
+                m_pixels[idx].blue  = *pixels++;
+                // TODO do we need alpha? Where do we get it. IndexPixel struct doesn't exist in magick++7
             }
         }
     }
@@ -58,20 +65,23 @@ void ImgMgr::write_image(const std::string &out_filename)
     try {
         /* create a new white image of the same size as our input image */
         Magick::Image img(Magick::Geometry(m_img_width, m_img_height), Magick::Color("white"));
-        Magick::Pixels view(img);
-        Magick::Quantum *pixels = view.get(0, 0, img.columns(), img.rows());
+        /* get image lock */
+        img.modifyImage();
+        /* overwrite new image's pixels with our own */
+        Magick::Quantum *pixels = img.getPixels(0, 0, img.columns(), img.rows());
         for (unsigned i = 0; i < img.rows(); i++) {
             for (unsigned j = 0; j < img.columns(); j++) {
                 /* extract channels from our array of pixel structs */
-                unsigned idx = i * img.columns() + j; 
+                unsigned idx = img.columns() * i + j; 
                 *pixels++ = m_pixels[idx].red;
                 *pixels++ = m_pixels[idx].green;
                 *pixels++ = m_pixels[idx].blue;
             }
         }
-
+        /* save image */
+        img.syncPixels();
+        /* write to output file */
         img.write(out_filename);
-        
     }
 
     catch (const Magick::Exception &e) {
@@ -84,5 +94,5 @@ void ImgMgr::test(const std::string &out_filename)
     /* create a white image with a red dot in the center */
     Magick::Image image("1000x1000", "white");
     image.pixelColor(499,499,"red");
-    image.write(out_filename.c_str());
+    image.write(out_filename);
 }

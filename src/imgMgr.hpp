@@ -4,10 +4,10 @@
 #include <Magick++.h>
 
 typedef struct {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-    uint8_t alpha;
+    uint16_t red;
+    uint16_t green;
+    uint16_t blue;
+    uint16_t alpha;
 } pixel_t;
 
 ///
