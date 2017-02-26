@@ -18,12 +18,19 @@ class CannyEdgeDetector : public EdgeDetector
         void detect_edges(bool serial);
 
     private:
-        /* these are all called by detect_edges() to implement the algorithm */
+        /* CPU implementation */
         //void apply_gaussian_filter();
         //void compute_intensity_gradient();
         //void suppress_non_max();
         //void apply_double_threshold();
         void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+
+        /* CUDA/GPU implementation */
+        //void cu_apply_gaussian_filter();
+        //void cu_compute_intensity_gradient();
+        //void cu_suppress_non_max();
+        //void cu_apply_double_threshold();
+        //void cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
 
         /* helper functions */
         void trace_immed_neighbors(pixel_t *out_pixels, pixel_t *in_pixels, unsigned idx, pixel_t t_low);

@@ -4,6 +4,7 @@
 #include "ed_args.h"
 #include "imgMgr.hpp"
 #include "cannyEdgeDetector.hpp"
+#include "saxpy.h"
 
 int main(int argc, char** argv)
 {
@@ -35,5 +36,6 @@ int main(int argc, char** argv)
     /* write results */
     img_mgr->write_image(args.outFile);
 
+    test_saxpy();
     return ED_SUCCESS;
 }

@@ -1,4 +1,6 @@
+
 #include <stdio.h>
+#include <string.h>
 
 __global__
 void saxpy(int n, float a, float *x, float *y)
@@ -7,7 +9,7 @@ void saxpy(int n, float a, float *x, float *y)
     if (idx < n) y[idx] = a*x[idx] + y[idx];
 }
 
-int main(void) {
+void test_saxpy(void) {
     int n = 1 << 20;
     float *x, *y, *d_x, *d_y;
 

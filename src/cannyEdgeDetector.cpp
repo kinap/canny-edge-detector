@@ -20,6 +20,20 @@ CannyEdgeDetector::~CannyEdgeDetector(void)
 void CannyEdgeDetector::detect_edges(bool serial)
 {
     std::cout << "in canny edge detector" << std::endl;
+    if (true == serial) {
+        //void apply_gaussian_filter();
+        //void compute_intensity_gradient();
+        //void suppress_non_max();
+        //void apply_double_threshold();
+        //void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+    } else { // GPGPU
+        /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
+        //void cu_apply_gaussian_filter();
+        //void cu_compute_intensity_gradient();
+        //void cu_suppress_non_max();
+        //void cu_apply_double_threshold();
+        //void cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+    }
 }
 
 ///
