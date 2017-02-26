@@ -26,14 +26,19 @@ ImgMgr::~ImgMgr(void)
 }
 
 ///
-/// \brief Accessor to image pixel array.
-/// User will call this method to gain access to the
-/// internal pixel array of the image manager.
-/// These pixels will then be rdwr.
+/// \brief Return image width
 ///
-pixel_t* ImgMgr::getPixelHandle(void)
+unsigned ImgMgr::getImgWidth(void)
 {
-    return m_pixels;
+    return m_img_width;
+}
+
+///
+/// \brief Return image height 
+///
+unsigned ImgMgr::getImgHeight(void)
+{
+    return m_img_height;
 }
 
 ///
@@ -42,6 +47,17 @@ pixel_t* ImgMgr::getPixelHandle(void)
 unsigned ImgMgr::getPixelCount(void)
 {
     return m_img_width * m_img_height;
+}
+
+///
+/// \brief Accessor to image pixel array.
+/// User will call this method to gain access to the
+/// internal pixel array of the image manager.
+/// These pixels will then be rdwr.
+///
+pixel_t* ImgMgr::getPixelHandle(void)
+{
+    return m_pixels;
 }
 
 ///

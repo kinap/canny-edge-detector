@@ -27,8 +27,10 @@ class ImgMgr
         ImgMgr(char *argv);
         ~ImgMgr();
 
-        pixel_t* getPixelHandle();
+        unsigned getImgWidth();
+        unsigned getImgHeight();
         unsigned getPixelCount();
+        pixel_t* getPixelHandle();
 
         void read_image(const std::string &in_filename);
         void write_image(const std::string &out_filename);

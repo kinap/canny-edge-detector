@@ -20,7 +20,7 @@ class EdgeDetector
 
         virtual void detect_edges(bool serial) = 0;
 
-    private:
+    protected:
         std::shared_ptr<ImgMgr> m_image_mgr;
 };
 
