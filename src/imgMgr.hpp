@@ -23,7 +23,9 @@ class ImgMgr
         ImgMgr(char *argv);
         ~ImgMgr();
 
+        pixel_t* getPixelHandle();
         unsigned getPixelCount();
+
         void read_image(const std::string &in_filename);
         void write_image(const std::string &out_filename);
 

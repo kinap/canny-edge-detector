@@ -3,6 +3,10 @@
 #include <assert.h>
 #include "imgMgr.hpp"
 
+///
+/// \brief Image manager contructor
+/// Initializes Magick++ image library and member variables.
+/// 
 ImgMgr::ImgMgr(char *argv)
 : m_img_width(0), m_img_height(0), m_pixels(nullptr)
 {
@@ -10,6 +14,10 @@ ImgMgr::ImgMgr(char *argv)
     Magick::InitializeMagick(argv);
 }
 
+///
+/// \brief Image manager destructor.
+/// Frees up pixel array memory if there was any allocated.
+///
 ImgMgr::~ImgMgr(void)
 {
     if (m_pixels != nullptr) {
@@ -17,11 +25,29 @@ ImgMgr::~ImgMgr(void)
     }
 }
 
+///
+/// \brief Accessor to image pixel array.
+/// User will call this method to gain access to the
+/// internal pixel array of the image manager.
+/// These pixels will then be rdwr.
+///
+pixel_t* ImgMgr::getPixelHandle(void)
+{
+    return m_pixels;
+}
+
+///
+/// \brief Return total pixel count (width x height).
+///
 unsigned ImgMgr::getPixelCount(void)
 {
     return m_img_width * m_img_height;
 }
 
+///
+/// \brief Given a filename, open and image file and
+/// copy it's pixel data to an internal array of pixel structs.
+///
 void ImgMgr::read_image(const std::string &in_filename)
 {
     try {
@@ -60,6 +86,10 @@ void ImgMgr::read_image(const std::string &in_filename)
     }
 }
 
+///
+/// \brief Given a filename, creat an image file using
+/// the pixel data of this image manager instance.
+///
 void ImgMgr::write_image(const std::string &out_filename)
 {
     try {
@@ -89,7 +119,11 @@ void ImgMgr::write_image(const std::string &out_filename)
     }
 }
 
-void ImgMgr::test(const std::string &out_filename)
+///
+/// \brief Magick++ test function.
+/// Creates a white image with a red dot in the center.
+///
+void ImgMgr::test_red_dot(const std::string &out_filename)
 {
     /* create a white image with a red dot in the center */
     Magick::Image image("1000x1000", "white");
