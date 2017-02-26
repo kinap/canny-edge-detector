@@ -76,7 +76,7 @@ void ImgMgr::read_image(const std::string &in_filename)
                 m_pixels[idx].red   = *pixels++;
                 m_pixels[idx].green = *pixels++;
                 m_pixels[idx].blue  = *pixels++;
-                // TODO do we need alpha? Where do we get it. IndexPixel struct doesn't exist in magick++7
+                // TODO do we need alpha? Where do we get it? IndexPixel struct doesn't exist in magick++7
             }
         }
     }

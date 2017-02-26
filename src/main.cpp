@@ -21,13 +21,19 @@ int main(int argc, char** argv)
     }
 
     /* Instantiate our image manager */
-    ImgMgr img_mgr(*argv);
-    img_mgr.read_image(args.inFile);
-    img_mgr.write_image(args.outFile);
+    std::shared_ptr<ImgMgr> img_mgr = std::make_shared<ImgMgr>(*argv);
+
+    /* read input file */
+    img_mgr->read_image(args.inFile);
 
     /* Instantiate our edge detector */
-    CannyEdgeDetector ced;
+    CannyEdgeDetector ced(img_mgr);
+
+    /* run edge detection algorithm */
     ced.detect_edges(args.serial);
+
+    /* write results */
+    img_mgr->write_image(args.outFile);
 
     return CED_SUCCESS;
 }

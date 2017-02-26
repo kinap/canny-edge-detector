@@ -1,4 +1,7 @@
 
+#ifndef _CANNY_EDGE_DETECTOR_HPP_
+#define _CANNY_EDGE_DETECTOR_HPP_
+
 #include "edgeDetector.hpp"
 
 ///
@@ -9,7 +12,7 @@
 class CannyEdgeDetector : public EdgeDetector
 {
     public:
-        CannyEdgeDetector();
+        CannyEdgeDetector(std::shared_ptr<ImgMgr> image);
         ~CannyEdgeDetector();
 
         void detect_edges(bool serial);
@@ -22,3 +25,5 @@ class CannyEdgeDetector : public EdgeDetector
         //void apply_double_threshold();
         //void apply_hysteresis();
 };
+
+#endif // _CANNY_EDGE_DETECTOR_HPP_

@@ -1,5 +1,8 @@
 
-//#include "ImgMgr.hpp"
+#ifndef _EDGE_DETECTOR_HPP_
+#define _EDGE_DETECTOR_HPP_
+
+#include "imgMgr.hpp"
 
 ///
 /// \brief Edge dectector class
@@ -12,14 +15,13 @@
 class EdgeDetector
 {
     public:
-        EdgeDetector();
+        EdgeDetector(std::shared_ptr<ImgMgr> image);
         ~EdgeDetector();
-
-        //import_image();
 
         virtual void detect_edges(bool serial) = 0;
 
-        //export_image(std::string filename);
-
     private:
+        std::shared_ptr<ImgMgr> m_image_mgr;
 };
+
+#endif // _EDGE_DETECTOR_HPP_

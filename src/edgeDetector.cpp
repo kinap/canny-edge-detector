@@ -1,7 +1,8 @@
 
 #include "edgeDetector.hpp"
 
-EdgeDetector::EdgeDetector(void)
+EdgeDetector::EdgeDetector(std::shared_ptr<ImgMgr> image)
+: m_image_mgr(image)
 {
 
 }

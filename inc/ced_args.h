@@ -1,4 +1,6 @@
 /* This file contains argument parsing functions and such */
+#ifndef _CED_ARGS_H_
+#define _CED_ARGS_H_
 
 #include <argp.h>
 #include <string.h>
@@ -57,3 +59,4 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
 /* argp interface */
 static struct argp argp = {options, parse_opt, NULL, doc, 0, 0, 0};
 
+#endif // _CED_ARGS_H_

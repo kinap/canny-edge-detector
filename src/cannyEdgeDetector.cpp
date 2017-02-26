@@ -2,7 +2,8 @@
 #include <iostream>
 #include "cannyEdgeDetector.hpp"
 
-CannyEdgeDetector::CannyEdgeDetector(void)
+CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
+: EdgeDetector(image)
 {
 
 }
