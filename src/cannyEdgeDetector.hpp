@@ -19,7 +19,7 @@ class CannyEdgeDetector : public EdgeDetector
 
     private:
         /* CPU implementation */
-        //void apply_gaussian_filter();
+        void apply_gaussian_filter();
         //void compute_intensity_gradient();
         //void suppress_non_max();
         //void apply_double_threshold();
