@@ -1,6 +1,7 @@
 
-#include <iostream>
-#include <assert.h>
+#include <iostream> // cout, cerr
+#include <assert.h> // assert
+#include "string.h" // memcpy
 #include "cannyEdgeDetector.hpp"
 
 CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
@@ -20,28 +21,36 @@ CannyEdgeDetector::~CannyEdgeDetector(void)
 void CannyEdgeDetector::detect_edges(bool serial)
 {
     std::cout << "in canny edge detector" << std::endl;
-    pixel_t *input_pixels = m_image_mgr->getPixelHandle();
+    pixel_t *raw_pixels = m_image_mgr->getPixelHandle();
     unsigned input_pixel_length = m_image_mgr->getPixelCount();
     if (true == serial) {
+        std::cout << "  executing serially" << std::endl;
         pixel_t *buf0 = new pixel_t[input_pixel_length];
         pixel_t *buf1 = new pixel_t[input_pixel_length];
         assert(buf0);
         assert(buf1);
 
-        void apply_gaussian_filter(buf0, input_pixels);
-        //void compute_intensity_gradient(buf1, buf0);
-        //void suppress_non_max();
-        //void apply_double_threshold();
-        //void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+        apply_gaussian_filter(buf0, raw_pixels);
+        //compute_intensity_gradient(buf1, buf0);
+        //suppress_non_max();
+        //apply_double_threshold();
+        //apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+
+        memcpy(raw_pixels, buf0, input_pixel_length * sizeof(pixel_t[0]));
 
     } else { // GPGPU
         /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
-        //void cu_apply_gaussian_filter();
-        //void cu_compute_intensity_gradient();
-        //void cu_suppress_non_max();
-        //void cu_apply_double_threshold();
-        //void cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+        //cu_apply_gaussian_filter();
+        //cu_compute_intensity_gradient();
+        //cu_suppress_non_max();
+        //cu_apply_double_threshold();
+        //cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
     }
+}
+
+void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels)
+{
+    std::cout << "heya" << std::endl;
 }
 
 ///
