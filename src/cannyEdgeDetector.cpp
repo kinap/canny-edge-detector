@@ -24,11 +24,6 @@ void CannyEdgeDetector::detect_edges(bool serial)
     pixel_t *raw_pixels = m_image_mgr->getPixelHandle();
     unsigned input_pixel_length = m_image_mgr->getPixelCount();
 
-    /* test */
-    for (unsigned i = 0; i < input_pixel_length; i++) {
-        std::cout << "Pixels[" << std::dec << i << "].red : " << std::hex << (unsigned) raw_pixels[i].red << std::endl;
-    }
-
     if (true == serial) {
         std::cout << "  executing serially" << std::endl;
         pixel_t *buf0 = new pixel_t[input_pixel_length];

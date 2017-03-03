@@ -5,8 +5,8 @@
 #include <argp.h>
 #include <string.h>
 
-#define DEFAULT_INFILE "test.bmp"
-#define DEFAULT_OUTFILE "test_out.bmp"
+#define DEFAULT_INFILE "img/test.bmp"
+#define DEFAULT_OUTFILE "img/test_out.bmp"
 
 const char *argp_program_version = "edge_detect v0.1.0";
 

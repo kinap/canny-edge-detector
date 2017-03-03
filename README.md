@@ -14,10 +14,11 @@ source ./third_party/magick.env
 
 # Compilation
 Binaries will be located in the bin/ directory. All CPU code objects are compiled with g++. CUDA kernel objects are compiled with nvcc. The final executable is also compiled with nvcc.
+Note that multithreaded make is broken with nvcc in this build system.
 
 Ensure all dependencies have installed successfully, then run:
 ```
-make -j4
+make
 ```
 
 # Execution
@@ -41,7 +42,7 @@ To debug, you'll need to compile with the debug option and run manually.
 source third_party/magick.env
 
 # compile with debug symbols and statements
-make DEBUG=1 -j4
+make DEBUG=1
 ```
 
 ## Debugging Host code

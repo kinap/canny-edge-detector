@@ -79,8 +79,8 @@ void ImgMgr::read_image(const std::string &in_filename)
         img.read(in_filename);
 
         /* populate internal data structures */
-        m_img_width = img.rows();
-        m_img_height = img.columns();
+        m_img_width = img.columns();
+        m_img_height = img.rows();
         m_channel_depth = img.depth();
         
         if (nullptr == m_pixels) {
@@ -99,7 +99,7 @@ void ImgMgr::read_image(const std::string &in_filename)
         #endif
 
         /* extract the pixels from the image, put them in a format we can export portably */
-        Magick::Quantum *pixels = img.getPixels(0, 0, img.columns(), img.rows());
+        const Magick::Quantum *pixels = img.getConstPixels(0, 0, img.columns(), img.rows());
         for (unsigned i = 0; i < img.rows(); i++) {
             for (unsigned j = 0; j < img.columns(); j++) {
                 /* remap to a flat buffer of pixel structs */
@@ -107,7 +107,6 @@ void ImgMgr::read_image(const std::string &in_filename)
                 m_pixels[idx].red   = *pixels++;
                 m_pixels[idx].green = *pixels++;
                 m_pixels[idx].blue  = *pixels++;
-                // TODO do we need alpha? Where do we get it? IndexPixel struct doesn't exist in magick++7
             }
         }
     }

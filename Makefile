@@ -69,4 +69,4 @@ clean:
 	rm -f $(CUDA_OBJS)
 
 run:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(RUNDIR)/$(PROJ) -s
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(RUNDIR)/$(PROJ) -s -i ./img/mt.bmp
