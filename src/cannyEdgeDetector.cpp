@@ -57,6 +57,290 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *
     std::cout << "heya" << std::endl;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// compute gradient (first order derivative x and y)
+///////////////////////////////////////////////////////////////////////////////
+void CannyEdgeDetector::gradient(pixel_t *in_pixels, pixel_t *deltaX, pixel_t *deltaY)
+{
+	unsigned offset = m_image_mgr->getImgWidth();
+	unsigned parser_length = m_image_mgr->getImgHeight();
+	unsigned idx;
+    // compute delta X ***************************
+    // deltaX = f(x+1) - f(x-1)
+    for(unsigned i = 0; parser_length; ++i)
+    {
+		idx = offset * i; // current position X per line
+
+        // gradient at the first pixel of each line
+        // note: the edge,pix[idx-1] is NOT exsit
+        deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx].red;
+		deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx].green;
+		deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx].blue;
+
+        // gradients where NOT edge
+        for(unsigned j = 1; j < offset-1; ++j)
+        {
+            idx++;
+			deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx-1].red;
+			deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx-1].green;
+			deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx-1].blue;
+        }
+
+        // gradient at the last pixel of each line
+        idx++;
+		deltaX[idx].red = in_pixels[idx].red - in_pixels[idx-1].red;
+		deltaX[idx].green = in_pixels[idx].green - in_pixels[idx-1].green;
+		deltaX[idx].blue = in_pixels[idx].blue - in_pixels[idx-1].blue;
+    }
+
+    // compute delta Y ***************************
+    // deltaY = f(y+1) - f(y-1)
+    for(unsigned j = 0; j < offset; ++j)
+    {
+		idx = j;	// current Y position per column
+        // gradient at the first pixel
+		deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx].red;
+		deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx].green;
+		deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx].blue;
+
+        // gradients for NOT edge pixels
+        for(unsigned i = 1; i < parser_length-1; ++i)
+        {
+			idx += offset;
+			deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx-offset].red;
+			deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx-offset].green;
+			deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx-offset].blue;
+        }
+
+        // gradient at the last pixel of each column
+		idx += offset;
+		deltaY[idx].red = in_pixels[idx].red - in_pixels[idx-offset].red;
+		deltaY[idx].green = in_pixels[idx].green - in_pixels[idx-offset].green;
+		deltaY[idx].blue = in_pixels[idx].blue - in_pixels[idx-offset].blue;
+    }
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// compute magnitude of gradient(deltaX & deltaY) per pixel
+///////////////////////////////////////////////////////////////////////////////
+void CannyEdgeDetector::magnitude(pixel_t *deltaX, pixel_t *deltaY, pixel_t *mag)
+{
+    unsigned idx;
+	unsigned offset = m_image_mgr->getImgWidth();
+	unsigned parser_length = m_image_mgr->getImgHeight();
+
+	//computation
+    idx = 0;
+    for(unsigned i = 0; i < parser_length; ++i)
+        for(unsigned j = 0; j < offset; ++j, ++idx)
+		{
+			mag[idx].red = (unsigned short)(sqrt((double)deltaX[idx].red*deltaX[idx].red + (double)deltaY[idx].red*deltaY[idx].red) + 0.5);
+			mag[idx].green = (unsigned short)(sqrt((double)deltaX[idx].green*deltaX[idx].green + (double)deltaY[idx].green*deltaY[idx].green) + 0.5);
+			mag[idx].blue = (unsigned short)(sqrt((double)deltaX[idx].blue*deltaX[idx].blue + (double)deltaY[idx].blue*deltaY[idx].blue) + 0.5);
+		}
+}
+
+void rgb2gray(pixel_t *in_pixel, short *out_pixel, unsigned max_pixel_cnt)
+{
+	for(unsigned idx = 0; idx < max_pixel_cnt; idx++)
+	{
+		out_pixel[idx] = 0.2989 * in_pixel[idx].red + 0.5870 * in_pixel[idx].green + 0.1140 * in_pixel[idx].blue; 
+	}
+	
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// compute direction of edges for each pixel (angle of 1st derivative of image)
+// quantize the normal directions into 16 plus 0(dx=dy=0)
+///////////////////////////////////////////////////////////////////////////////
+void CannyEdgeDetector::direction(short *deltaX, short *deltaY, unsigned char *orient)
+{
+    unsigned t = 0;
+	unsigned offset = m_image_mgr->getImgWidth();
+	unsigned parser_length = m_image_mgr->getImgHeight();
+	
+    for(unsigned j = 0; j < parser_length; j++)
+    {
+        for(unsigned i = 0; i < offset; i++)
+        {
+            if(deltaX[t] == 0) // all axis directions
+            {
+                if(deltaY[t] == 0) orient[t] = 0;
+                else if(deltaY[t] > 0) orient[t] = 5;
+                else orient[t] = 13;
+            }
+
+            else if(deltaX[t] > 0)
+            {
+                if(deltaY[t] == 0) orient[t] = 1;
+                else if(deltaY[t] > 0)
+                {
+                    if(deltaX[t] - deltaY[t] == 0) orient[t] = 3;
+                    else if(deltaX[t] - deltaY[t] > 0) orient[t] = 2;
+                    else orient[t] = 4;
+                }
+                else
+                {
+                    if(deltaX[t] + deltaY[t] == 0) orient[t] = 15;
+                    else if(deltaX[t] + deltaY[t] > 0) orient[t] = 16;
+                    else orient[t] = 14;
+                }
+            }
+
+            else
+            {
+                if(deltaY[t] == 0) orient[t] = 9;
+                else if(deltaY[t] > 0)
+                {
+                    if(deltaY[t] + deltaX[t] == 0) orient[t] = 7;
+                    else if(deltaY[t] + deltaX[t] > 0) orient[t] = 6;
+                    else orient[t] = 8;
+                }
+                else
+                {
+                    if(deltaY[t] - deltaX[t] == 0) orient[t] = 11;
+                    else if(deltaY[t] - deltaX[t] > 0) orient[t] = 10;
+                    else orient[t] = 12;
+                }
+            }
+
+            //if(orient[t] == 16) printf("%d,%d, %d    ", deltaX[t], deltaY[t],orient[t]);
+            t++;
+        }
+    }
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Non Maximal Suppression
+// If the centre pixel is not greater than neighboured pixels in the direction,
+// then the center pixel is set to zero.
+// This process results in one pixel wide ridges.
+///////////////////////////////////////////////////////////////////////////////
+void CannyEdgeDetector::nonMaxSupp(unsigned short *mag, short *deltaX, short *deltaY, unsigned char *nms)
+{
+    unsigned t = 0;
+	unsigned offset = m_image_mgr->getImgWidth();
+	unsigned parser_length = m_image_mgr->getImgHeight();
+    float alpha;
+    float mag1, mag2;
+    const unsigned char SUPPRESSED = 0;
+
+    // put zero all boundaries of image
+    // TOP edge line of the image
+    for(unsigned j = 0; j < offset; ++j)
+        nms[j] = 0;
+
+    // BOTTOM edge line of image
+    t = (parser_length-1)*offset;
+    for(unsigned j = 0; j < offset; ++j, ++t)
+        nms[t] = 0;
+
+    // LEFT & RIGHT edge line
+    t = offset;
+    for(unsigned i = 1; i < parser_length; ++i, t+=offset)
+    {
+        nms[t] = 0;
+        nms[t+offset-1] = 0;
+    }
+
+    t = offset + 1;  // skip boundaries of image
+    // start and stop 1 pixel inner pixels from boundaries
+    for(unsigned i = 1; i < parser_length-1; i++, t+=2)
+    {
+        for(unsigned j = 1; j < offset-1; j++, t++)
+        {
+            // if magnitude = 0, no edge
+            if(mag[t] == 0) nms[t] = SUPPRESSED;
+            else{
+                if(deltaX[t] >= 0)
+                {
+                    if(deltaY[t] >= 0)  // dx >= 0, dy >= 0
+                    {
+                        if((deltaX[t] - deltaY[t]) >= 0)       // direction 1 (SEE, South-East-East)
+                        {
+                            alpha = (float)deltaY[t] / deltaX[t];
+                            mag1 = (1-alpha)*mag[t+1] + alpha*mag[t+offset+1];
+                            mag2 = (1-alpha)*mag[t-1] + alpha*mag[t-offset-1];
+                        }
+                        else                                // direction 2 (SSE)
+                        {
+                            alpha = (float)deltaX[t] / deltaY[t];
+                            mag1 = (1-alpha)*mag[t+offset] + alpha*mag[t+offset+1];
+                            mag2 = (1-alpha)*mag[t-offset] + alpha*mag[t-offset-1];
+                        }
+                    }
+
+                    else  // dx >= 0, dy < 0
+                    {
+                        if((deltaX[t] + deltaY[t]) >= 0)    // direction 8 (NEE)
+                        {
+                            alpha = (float)-deltaY[t] / deltaX[t];
+                            mag1 = (1-alpha)*mag[t+1] + alpha*mag[t-offset+1];
+                            mag2 = (1-alpha)*mag[t-1] + alpha*mag[t+offset-1];
+                        }
+                        else                                // direction 7 (NNE)
+                        {
+                            alpha = (float)deltaX[t] / -deltaY[t];
+                            mag1 = (1-alpha)*mag[t+offset] + alpha*mag[t+offset-1];
+                            mag2 = (1-alpha)*mag[t-offset] + alpha*mag[t-offset+1];
+                        }
+                    }
+                }
+
+                else
+                {
+                    if(deltaY[t] >= 0) // dx < 0, dy >= 0
+                    {
+                        if((deltaX[t] + deltaY[t]) >= 0)    // direction 3 (SSW)
+                        {
+                            alpha = (float)-deltaX[t] / deltaY[t];
+                            mag1 = (1-alpha)*mag[t+offset] + alpha*mag[t+offset-1];
+                            mag2 = (1-alpha)*mag[t-offset] + alpha*mag[t-offset+1];
+                        }
+                        else                                // direction 4 (SWW)
+                        {
+                            alpha = (float)deltaY[t] / -deltaX[t];
+                            mag1 = (1-alpha)*mag[t-1] + alpha*mag[t+offset-1];
+                            mag2 = (1-alpha)*mag[t+1] + alpha*mag[t-offset+1];
+                        }
+                    }
+
+                    else // dx < 0, dy < 0
+                    {
+                        if((-deltaX[t] + deltaY[t]) >= 0)   // direction 5 (NWW)
+                        {
+                            alpha = (float)deltaY[t] / deltaX[t];
+                            mag1 = (1-alpha)*mag[t-1] + alpha*mag[t-offset-1];
+                            mag2 = (1-alpha)*mag[t+1] + alpha*mag[t+offset+1];
+                        }
+                        else                                // direction 6 (NNW)
+                        {
+                            alpha = (float)deltaX[t] / deltaY[t];
+                            mag1 = (1-alpha)*mag[t-offset] + alpha*mag[t-offset-1];
+                            mag2 = (1-alpha)*mag[t+offset] + alpha*mag[t+offset+1];
+                        }
+                    }
+                }
+
+                // non-maximal suppression
+                // compare mag1, mag2 and mag[t]
+                // if mag[t] is smaller than one of the neighbours then suppress it
+                if((mag[t] < mag1) || (mag[t] < mag2))
+                    nms[t] = SUPPRESSED;
+                else
+                {
+                    if(mag[t] > 255) nms[t] = 255;
+                    else nms[t] = (unsigned char)mag[t];
+                }
+
+            } // END OF ELSE (mag != 0)
+        } // END OF FOR(j)
+    } // END OF FOR(i)
+}
 ///
 /// \brief Hysteresis step. This is used to 
 /// a) remove weak edges 
