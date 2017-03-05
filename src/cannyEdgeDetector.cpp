@@ -20,7 +20,6 @@ CannyEdgeDetector::~CannyEdgeDetector(void)
 
 void CannyEdgeDetector::detect_edges(bool serial)
 {
-    std::cout << "in canny edge detector" << std::endl;
     pixel_t *raw_pixels = m_image_mgr->getPixelHandle();
     unsigned input_pixel_length = m_image_mgr->getPixelCount();
 
@@ -37,12 +36,13 @@ void CannyEdgeDetector::detect_edges(bool serial)
         //apply_double_threshold();
         //apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
 
-        memcpy(raw_pixels, buf0, input_pixel_length * sizeof(pixel_t[0]));
+        memcpy(raw_pixels, buf0, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
         delete [] buf1;
 
     } else { // GPGPU
+        std::cout << "  executing in parallel on GPU" << std::endl;
         /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
         //cu_apply_gaussian_filter();
         //cu_compute_intensity_gradient();
@@ -54,7 +54,6 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
 void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels)
 {
-    std::cout << "heya" << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
