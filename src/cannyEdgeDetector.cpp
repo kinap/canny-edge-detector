@@ -1,7 +1,10 @@
 
 #include <iostream> // cout, cerr
 #include <assert.h> // assert
-#include "string.h" // memcpy
+#include <string.h> // memcpy
+#define _USE_MATH_DEFINES
+#include <math.h>
+#define KERNEL_SIZE 5
 #include "cannyEdgeDetector.hpp"
 
 CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
@@ -31,52 +34,49 @@ void CannyEdgeDetector::detect_edges(bool serial)
         std::cout << "  executing serially" << std::endl;
         /* allocate intermeditate buffers */
         pixel_t *buf0 = new pixel_t[input_pixel_length];
-        pixel_t_signed *gradientX = new pixel_t_signed[input_pixel_length];
-	pixel_t_signed *gradientY = new pixel_t_signed[input_pixel_length];
-	pixel_t_float *magnitude_v = new pixel_t_float[input_pixel_length];
-	float *magnitude_float = new float[input_pixel_length]; 
-	pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
-	pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
-	float *threshold_pixels = new float[input_pixel_length];
+        //pixel_t_signed *gradientX = new pixel_t_signed[input_pixel_length];
+        //pixel_t_signed *gradientY = new pixel_t_signed[input_pixel_length];
+        //pixel_t_float *magnitude_v = new pixel_t_float[input_pixel_length];
+        //float *magnitude_float = new float[input_pixel_length]; 
+        //pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
+        //pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
+        //float *threshold_pixels = new float[input_pixel_length];
 
-	
+    
         assert(nullptr != buf0);
-        assert(nullptr != gradientX);
-	assert(nullptr != gradientY);
-	assert(nullptr != magnitude_v);
-	assert(nullptr != deltaX_gray);
-	assert(nullptr != deltaY_gray);
-	assert(nullptr != threshold_pixels);
+        //assert(nullptr != gradientX);
+        //assert(nullptr != gradientY);
+        //assert(nullptr != magnitude_v);
+        //assert(nullptr != deltaX_gray);
+        //assert(nullptr != deltaY_gray);
+        //assert(nullptr != threshold_pixels);
 
         /* run canny edge detection core */
-        apply_gaussian_filter(buf0, orig_pixels, input_pixel_length);
+        apply_gaussian_filter(buf0, orig_pixels);
 
-	compute_intensity_gradient(buf0, gradientX, gradientY);
-	
-	magnitude(gradientX, gradientY, magnitude_v);
+        //compute_intensity_gradient(buf0, gradientX, gradientY);
+        //
+        //magnitude(gradientX, gradientY, magnitude_v);
 
-	rgb2gray(gradientX, deltaX_gray, input_pixel_length);
+        //rgb2gray(gradientX, deltaX_gray, input_pixel_length);
 
-	rgb2gray(gradientY, deltaY_gray, input_pixel_length);
+        //rgb2gray(gradientY, deltaY_gray, input_pixel_length);
 
-	rgb2gray_float(magnitude_v, magnitude_float, input_pixel_length);
+        //rgb2gray_float(magnitude_v, magnitude_float, input_pixel_length);
 
-	suppress_non_max(magnitude_float, deltaX_gray, deltaY_gray, threshold_pixels);
-        //compute_intensity_gradient(buf1, buf0);
-        //suppress_non_max();
-        //apply_double_threshold();
-        //apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+        //suppress_non_max(magnitude_float, deltaX_gray, deltaY_gray, threshold_pixels);
+        //apply_hysteresis(*out_pixels, *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
 
         /* copy edge detected image back into image mgr class so we can write it out later */
         memcpy(orig_pixels, buf0, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
-        delete [] gradientX;
-	delete [] gradientY;
-	delete [] magnitude_v;
-	delete [] deltaX_gray;
-	delete [] deltaY_gray;
-	delete [] threshold_pixels;
+        //delete [] gradientX;
+        //delete [] gradientY;
+        //delete [] magnitude_v;
+        //delete [] deltaX_gray;
+        //delete [] deltaY_gray;
+        //delete [] threshold_pixels;
 
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
@@ -90,11 +90,79 @@ void CannyEdgeDetector::detect_edges(bool serial)
 }
 
 ///
-/// \brief Compute gradient (first order derivative x and y)
+///This function is used to slightly blur the image to remove noise
 ///
-void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels, unsigned input_pixel_length)
+void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_pixels)
 {
-    memcpy(blurred_pixels, input_pixels, input_pixel_length * sizeof(pixel_t));
+    double kernel[KERNEL_SIZE][KERNEL_SIZE];
+    double stDev;
+    double scaleVal;
+    int rows = m_image_mgr->getImgHeight();
+    int cols = m_image_mgr->getImgWidth();
+    int i;
+    int j;
+
+    //populate Convolution Kernel
+    stDev = 100;
+    scaleVal = 1;
+    for (i = 0; i < KERNEL_SIZE; ++i) {
+        for (j = 0; j < KERNEL_SIZE; ++j) {
+            double xComp = pow((i - KERNEL_SIZE/2), 2);
+            double yComp = pow((j - KERNEL_SIZE/2), 2);
+
+            double stDevSq = pow(stDev, 2);
+            double pi = M_PI;
+
+            //calculate the value at each index of the Kernel
+            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
+            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
+
+            //populate Kernel
+            kernel[i][j] = kernelVal;
+
+            if (i==0 && j==0) 
+            {
+                scaleVal = kernel[0][0];
+            }
+
+            //normalize Kernel
+            kernel[i][j] = kernel[i][j] / scaleVal;
+        }
+    }
+
+    double kernelSum;
+    double redPixelVal;
+    double greenPixelVal;
+    double bluePixelVal;
+
+    //Apply Kernel to image
+    for (int pixNum = 0; pixNum < rows * cols; ++pixNum) {
+
+        for (i = 0; i < KERNEL_SIZE; ++i) {
+            for (j = 0; j < KERNEL_SIZE; ++j) {                   
+
+                //check edge cases, if within bounds, apply filter
+                if (((pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)) >= 0)
+                    && ((pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)) <= rows*cols-1)
+                    && (((pixNum % cols) + j - ((KERNEL_SIZE-1)/2)) >= 0)
+                    && (((pixNum % cols) + j - ((KERNEL_SIZE-1)/2)) <= (cols-1))) {
+
+                    redPixelVal += kernel[i][j] * in_pixels[pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)].red;
+                    greenPixelVal += kernel[i][j] * in_pixels[pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)].green;
+                    bluePixelVal += kernel[i][j] * in_pixels[pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)].blue;
+                    kernelSum += kernel[i][j];
+                }
+            }
+        }
+
+        out_pixels[pixNum].red = redPixelVal / kernelSum;
+        out_pixels[pixNum].green = greenPixelVal / kernelSum;
+        out_pixels[pixNum].blue = bluePixelVal / kernelSum;
+        redPixelVal = 0;
+        greenPixelVal = 0;
+        bluePixelVal = 0;
+        kernelSum = 0;
+    }            
 }
 
 ///

@@ -33,7 +33,7 @@ class CannyEdgeDetector : public EdgeDetector
 
     private:
         /* CPU implementation */
-        void apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels, unsigned input_pixel_length);
+        void apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels);
         void compute_intensity_gradient(pixel_t *in_pixels, pixel_t_signed *deltaX, pixel_t_signed *deltaY);
         void suppress_non_max(float *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *nms);
         void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
