@@ -4,7 +4,7 @@
 #include "ed_args.h"
 #include "imgMgr.hpp"
 #include "cannyEdgeDetector.hpp"
-#include "saxpy.h"
+#include "canny.h"
 
 int main(int argc, char** argv)
 {
