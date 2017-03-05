@@ -2,10 +2,12 @@
 #ifndef _ED_PIXEL_H_
 #define _ED_PIXEL_H_
 
+#define pixel_channel_t uint16_t
+
 struct pixel_t {
-    uint16_t red;
-    uint16_t green;
-    uint16_t blue;
+    pixel_channel_t red;
+    pixel_channel_t green;
+    pixel_channel_t blue;
 
     /* Overloaded operators for comparing pixels */
     // TODO re-evaluate only using red channel here

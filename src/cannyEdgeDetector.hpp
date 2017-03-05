@@ -19,16 +19,15 @@ class CannyEdgeDetector : public EdgeDetector
 
     private:
         /* CPU implementation */
-        void apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels);
-	void gradient(pixel_t *in_pixels, pixel_t *deltaX, pixel_t *deltaY);
-	void magnitude(pixel_t *deltaX, pixel_t *deltaY, pixel_t *mag);
-	void direction(short *deltaX, short *deltaY, unsigned char *orient);
-	void nonMaxSupp(unsigned short *mag, short *deltaX, short *deltaY, unsigned char *nms);
-	void rgb2gray(pixel_t *in_pixel, short *out_pixel, unsigned max_pixel_cnt);
-        //void compute_intensity_gradient();
-        //void suppress_non_max();
-        //void apply_double_threshold();
+        void apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels, unsigned input_pixel_length);
+        void compute_intensity_gradient(pixel_t *in_pixels, pixel_t *deltaX, pixel_t *deltaY);
+        void suppress_non_max(pixel_channel_t *mag, pixel_channel_t *deltaX, pixel_channel_t *deltaY, unsigned char *nms);
         void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+
+        void magnitude(pixel_t *deltaX, pixel_t *deltaY, pixel_t *mag);
+        void direction(pixel_channel_t *deltaX, pixel_channel_t *deltaY, unsigned char *orient);
+        void rgb2gray(pixel_t *in_pixel, pixel_channel_t *out_pixel, unsigned max_pixel_cnt);
+        //void apply_double_threshold();
 
         /* CUDA/GPU implementation */
         //void cu_apply_gaussian_filter();

@@ -18,25 +18,32 @@ CannyEdgeDetector::~CannyEdgeDetector(void)
 
 }
 
+///
+/// \brief Runs the canny edge detection algorithm on an image represented by
+/// the image manager instance this edge detection instance was constructed with.
+///
 void CannyEdgeDetector::detect_edges(bool serial)
 {
-    pixel_t *raw_pixels = m_image_mgr->getPixelHandle();
+    pixel_t *orig_pixels = m_image_mgr->getPixelHandle();
     unsigned input_pixel_length = m_image_mgr->getPixelCount();
 
     if (true == serial) {
         std::cout << "  executing serially" << std::endl;
+        /* allocate intermeditate buffers */
         pixel_t *buf0 = new pixel_t[input_pixel_length];
         pixel_t *buf1 = new pixel_t[input_pixel_length];
-        assert(buf0);
-        assert(buf1);
+        assert(nullptr != buf0);
+        assert(nullptr != buf1);
 
-        apply_gaussian_filter(buf0, raw_pixels);
+        /* run canny edge detection core */
+        apply_gaussian_filter(buf0, orig_pixels, input_pixel_length);
         //compute_intensity_gradient(buf1, buf0);
         //suppress_non_max();
         //apply_double_threshold();
         //apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
 
-        memcpy(raw_pixels, buf0, input_pixel_length * sizeof(pixel_t));
+        /* copy edge detected image back into image mgr class so we can write it out later */
+        memcpy(orig_pixels, buf0, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
         delete [] buf1;
@@ -52,114 +59,125 @@ void CannyEdgeDetector::detect_edges(bool serial)
     }
 }
 
-void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels)
+///
+/// \brief Compute gradient (first order derivative x and y)
+///
+void CannyEdgeDetector::apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels, unsigned input_pixel_length)
 {
+    memcpy(blurred_pixels, input_pixels, input_pixel_length * sizeof(pixel_t));
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// compute gradient (first order derivative x and y)
-///////////////////////////////////////////////////////////////////////////////
-void CannyEdgeDetector::gradient(pixel_t *in_pixels, pixel_t *deltaX, pixel_t *deltaY)
+///
+/// \brief Compute gradient (first order derivative x and y)
+///
+void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_t *deltaX, pixel_t *deltaY)
 {
-	unsigned offset = m_image_mgr->getImgWidth();
-	unsigned parser_length = m_image_mgr->getImgHeight();
-	unsigned idx;
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
+    unsigned idx;
     // compute delta X ***************************
     // deltaX = f(x+1) - f(x-1)
     for(unsigned i = 0; parser_length; ++i)
     {
-		idx = offset * i; // current position X per line
+        idx = offset * i; // current position X per line
 
         // gradient at the first pixel of each line
         // note: the edge,pix[idx-1] is NOT exsit
         deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx].red;
-		deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx].green;
-		deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx].blue;
+        deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx].green;
+        deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx].blue;
 
         // gradients where NOT edge
         for(unsigned j = 1; j < offset-1; ++j)
         {
             idx++;
-			deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx-1].red;
-			deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx-1].green;
-			deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx-1].blue;
+            deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx-1].red;
+            deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx-1].green;
+            deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx-1].blue;
         }
 
         // gradient at the last pixel of each line
         idx++;
-		deltaX[idx].red = in_pixels[idx].red - in_pixels[idx-1].red;
-		deltaX[idx].green = in_pixels[idx].green - in_pixels[idx-1].green;
-		deltaX[idx].blue = in_pixels[idx].blue - in_pixels[idx-1].blue;
+        deltaX[idx].red = in_pixels[idx].red - in_pixels[idx-1].red;
+        deltaX[idx].green = in_pixels[idx].green - in_pixels[idx-1].green;
+        deltaX[idx].blue = in_pixels[idx].blue - in_pixels[idx-1].blue;
     }
 
     // compute delta Y ***************************
     // deltaY = f(y+1) - f(y-1)
     for(unsigned j = 0; j < offset; ++j)
     {
-		idx = j;	// current Y position per column
+        idx = j;    // current Y position per column
         // gradient at the first pixel
-		deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx].red;
-		deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx].green;
-		deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx].blue;
+        deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx].red;
+        deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx].green;
+        deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx].blue;
 
         // gradients for NOT edge pixels
         for(unsigned i = 1; i < parser_length-1; ++i)
         {
-			idx += offset;
-			deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx-offset].red;
-			deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx-offset].green;
-			deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx-offset].blue;
+            idx += offset;
+            deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx-offset].red;
+            deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx-offset].green;
+            deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx-offset].blue;
         }
 
         // gradient at the last pixel of each column
-		idx += offset;
-		deltaY[idx].red = in_pixels[idx].red - in_pixels[idx-offset].red;
-		deltaY[idx].green = in_pixels[idx].green - in_pixels[idx-offset].green;
-		deltaY[idx].blue = in_pixels[idx].blue - in_pixels[idx-offset].blue;
+        idx += offset;
+        deltaY[idx].red = in_pixels[idx].red - in_pixels[idx-offset].red;
+        deltaY[idx].green = in_pixels[idx].green - in_pixels[idx-offset].green;
+        deltaY[idx].blue = in_pixels[idx].blue - in_pixels[idx-offset].blue;
     }
 }
 
 
-
-///////////////////////////////////////////////////////////////////////////////
-// compute magnitude of gradient(deltaX & deltaY) per pixel
-///////////////////////////////////////////////////////////////////////////////
+///
+/// \brief Compute magnitude of gradient(deltaX & deltaY) per pixel.
+///
 void CannyEdgeDetector::magnitude(pixel_t *deltaX, pixel_t *deltaY, pixel_t *mag)
 {
     unsigned idx;
-	unsigned offset = m_image_mgr->getImgWidth();
-	unsigned parser_length = m_image_mgr->getImgHeight();
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
 
-	//computation
+    //computation
     idx = 0;
     for(unsigned i = 0; i < parser_length; ++i)
         for(unsigned j = 0; j < offset; ++j, ++idx)
-		{
-			mag[idx].red = (unsigned short)(sqrt((double)deltaX[idx].red*deltaX[idx].red + (double)deltaY[idx].red*deltaY[idx].red) + 0.5);
-			mag[idx].green = (unsigned short)(sqrt((double)deltaX[idx].green*deltaX[idx].green + (double)deltaY[idx].green*deltaY[idx].green) + 0.5);
-			mag[idx].blue = (unsigned short)(sqrt((double)deltaX[idx].blue*deltaX[idx].blue + (double)deltaY[idx].blue*deltaY[idx].blue) + 0.5);
-		}
+        {
+            mag[idx].red =  (pixel_channel_t)(sqrt((double)deltaX[idx].red*deltaX[idx].red + 
+                            (double)deltaY[idx].red*deltaY[idx].red) + 0.5);
+
+            mag[idx].green =    (pixel_channel_t)(sqrt((double)deltaX[idx].green*deltaX[idx].green +
+                                (double)deltaY[idx].green*deltaY[idx].green) + 0.5);
+
+            mag[idx].blue = (pixel_channel_t)(sqrt((double)deltaX[idx].blue*deltaX[idx].blue +
+                            (double)deltaY[idx].blue*deltaY[idx].blue) + 0.5);
+        }
 }
 
-void rgb2gray(pixel_t *in_pixel, short *out_pixel, unsigned max_pixel_cnt)
+///
+/// \brief Converts an RGB pixel to grayscale
+///
+void rgb2gray(pixel_t *in_pixel, pixel_channel_t *out_pixel, unsigned max_pixel_cnt)
 {
-	for(unsigned idx = 0; idx < max_pixel_cnt; idx++)
-	{
-		out_pixel[idx] = 0.2989 * in_pixel[idx].red + 0.5870 * in_pixel[idx].green + 0.1140 * in_pixel[idx].blue; 
-	}
-	
+    for(unsigned idx = 0; idx < max_pixel_cnt; idx++)
+    {
+        out_pixel[idx] = 0.2989 * in_pixel[idx].red + 0.5870 * in_pixel[idx].green + 0.1140 * in_pixel[idx].blue; 
+    }
+    
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// compute direction of edges for each pixel (angle of 1st derivative of image)
-// quantize the normal directions into 16 plus 0(dx=dy=0)
-///////////////////////////////////////////////////////////////////////////////
-void CannyEdgeDetector::direction(short *deltaX, short *deltaY, unsigned char *orient)
+///
+/// \brief Compute direction of edges for each pixel (angle of 1st derivative of image).
+/// Quantize the normal directions into 16 plus 0(dx=dy=0).
+///
+void CannyEdgeDetector::direction(pixel_channel_t *deltaX, pixel_channel_t *deltaY, unsigned char *orient)
 {
     unsigned t = 0;
-	unsigned offset = m_image_mgr->getImgWidth();
-	unsigned parser_length = m_image_mgr->getImgHeight();
-	
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
+    
     for(unsigned j = 0; j < parser_length; j++)
     {
         for(unsigned i = 0; i < offset; i++)
@@ -205,25 +223,22 @@ void CannyEdgeDetector::direction(short *deltaX, short *deltaY, unsigned char *o
                 }
             }
 
-            //if(orient[t] == 16) printf("%d,%d, %d    ", deltaX[t], deltaY[t],orient[t]);
             t++;
         }
     }
 }
 
-
-
-///////////////////////////////////////////////////////////////////////////////
-// Non Maximal Suppression
-// If the centre pixel is not greater than neighboured pixels in the direction,
-// then the center pixel is set to zero.
-// This process results in one pixel wide ridges.
-///////////////////////////////////////////////////////////////////////////////
-void CannyEdgeDetector::nonMaxSupp(unsigned short *mag, short *deltaX, short *deltaY, unsigned char *nms)
+///
+/// \brief Non Maximal Suppression
+/// If the centre pixel is not greater than neighboured pixels in the direction,
+/// then the center pixel is set to zero.
+/// This process results in one pixel wide ridges.
+///
+void CannyEdgeDetector::suppress_non_max(pixel_channel_t *mag, pixel_channel_t *deltaX, pixel_channel_t *deltaY, unsigned char *nms)
 {
     unsigned t = 0;
-	unsigned offset = m_image_mgr->getImgWidth();
-	unsigned parser_length = m_image_mgr->getImgHeight();
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
     float alpha;
     float mag1, mag2;
     const unsigned char SUPPRESSED = 0;
@@ -340,6 +355,7 @@ void CannyEdgeDetector::nonMaxSupp(unsigned short *mag, short *deltaX, short *de
         } // END OF FOR(j)
     } // END OF FOR(i)
 }
+
 ///
 /// \brief Hysteresis step. This is used to 
 /// a) remove weak edges 
