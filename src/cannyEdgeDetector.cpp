@@ -39,11 +39,14 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
 	pixel_channel_t *threshold_pixels = new pixel_channel_t[input_pixel_length];
 
+	pixel_t *test_image = new pixel_t[input_pixel_length];
+
         assert(nullptr != buf0);
 	assert(nullptr != magnitude_v);
 	assert(nullptr != deltaX_gray);
 	assert(nullptr != deltaY_gray);
 	assert(nullptr != threshold_pixels);
+	assert(nullptr != test_image);
 
         /* run canny edge detection core */
         apply_gaussian_filter(buf0, orig_pixels);
@@ -53,15 +56,31 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
 
 	suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
+
+    unsigned idx;
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
+ 
+    //computation
+    idx = 0;
+    for(unsigned i = 0; i < parser_length; ++i)
+        for(unsigned j = 0; j < offset; ++j, ++idx)
+        {
+            test_image[idx].red = threshold_pixels[idx];
+	    test_image[idx].green = threshold_pixels[idx];
+	    test_image[idx].blue = threshold_pixels[idx];
+        }
+
 	// TODO dan apply hysteresis
         /* copy edge detected image back into image mgr class so we can write it out later */
-        memcpy(orig_pixels, buf0, input_pixel_length * sizeof(pixel_t));
+        memcpy(orig_pixels, test_image, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
 	delete [] magnitude_v;
 	delete [] deltaX_gray;
 	delete [] deltaY_gray;
 	delete [] threshold_pixels;
+	delete [] test_image;
 
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
