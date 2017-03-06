@@ -4,7 +4,7 @@
 #include <string.h> // memcpy
 #define _USE_MATH_DEFINES
 #include <math.h>
-#define KERNEL_SIZE 5
+#define KERNEL_SIZE 7 //defines edge length of kernel. Must be odd Value
 #include "cannyEdgeDetector.hpp"
 
 CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
@@ -103,7 +103,10 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
     int j;
 
     //populate Convolution Kernel
-    stDev = 100;
+    stDev = (double)KERNEL_SIZE/3;
+
+        std::cout <<std::dec<< stDev<< std::endl;
+
     scaleVal = 1;
     for (i = 0; i < KERNEL_SIZE; ++i) {
         for (j = 0; j < KERNEL_SIZE; ++j) {
@@ -154,7 +157,6 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
                 }
             }
         }
-
         out_pixels[pixNum].red = redPixelVal / kernelSum;
         out_pixels[pixNum].green = greenPixelVal / kernelSum;
         out_pixels[pixNum].blue = bluePixelVal / kernelSum;
