@@ -34,49 +34,34 @@ void CannyEdgeDetector::detect_edges(bool serial)
         std::cout << "  executing serially" << std::endl;
         /* allocate intermeditate buffers */
         pixel_t *buf0 = new pixel_t[input_pixel_length];
-        //pixel_t_signed *gradientX = new pixel_t_signed[input_pixel_length];
-        //pixel_t_signed *gradientY = new pixel_t_signed[input_pixel_length];
-        //pixel_t_float *magnitude_v = new pixel_t_float[input_pixel_length];
-        //float *magnitude_float = new float[input_pixel_length]; 
-        //pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
-        //pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
-        //float *threshold_pixels = new float[input_pixel_length];
+	float *magnitude_float = new float[input_pixel_length]; 
+	pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
+	pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
+	float *threshold_pixels = new float[input_pixel_length];
 
-    
         assert(nullptr != buf0);
-        //assert(nullptr != gradientX);
-        //assert(nullptr != gradientY);
-        //assert(nullptr != magnitude_v);
-        //assert(nullptr != deltaX_gray);
-        //assert(nullptr != deltaY_gray);
-        //assert(nullptr != threshold_pixels);
+	assert(nullptr != magnitude_float);
+	assert(nullptr != deltaX_gray);
+	assert(nullptr != deltaY_gray);
+	assert(nullptr != threshold_pixels);
 
         /* run canny edge detection core */
         apply_gaussian_filter(buf0, orig_pixels);
 
-        //compute_intensity_gradient(buf0, gradientX, gradientY);
-        //
-        //magnitude(gradientX, gradientY, magnitude_v);
+	compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
+	
+	magnitude(deltaX_gray, deltaY_gray, magnitude_float, input_pixel_length);
 
-        //rgb2gray(gradientX, deltaX_gray, input_pixel_length);
-
-        //rgb2gray(gradientY, deltaY_gray, input_pixel_length);
-
-        //rgb2gray_float(magnitude_v, magnitude_float, input_pixel_length);
-
-        //suppress_non_max(magnitude_float, deltaX_gray, deltaY_gray, threshold_pixels);
-        //apply_hysteresis(*out_pixels, *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
-
+	suppress_non_max(magnitude_float, deltaX_gray, deltaY_gray, threshold_pixels);
+	// TODO dan apply hysteresis
         /* copy edge detected image back into image mgr class so we can write it out later */
         memcpy(orig_pixels, buf0, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
-        //delete [] gradientX;
-        //delete [] gradientY;
-        //delete [] magnitude_v;
-        //delete [] deltaX_gray;
-        //delete [] deltaY_gray;
-        //delete [] threshold_pixels;
+	delete [] magnitude_float;
+	delete [] deltaX_gray;
+	delete [] deltaY_gray;
+	delete [] threshold_pixels;
 
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
@@ -170,37 +155,42 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
 ///
 /// \brief Compute gradient (first order derivative x and y)
 ///
-void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_t_signed *deltaX, pixel_t_signed *deltaY)
+void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel,unsigned max_pixel_cnt)
 {
     unsigned offset = m_image_mgr->getImgWidth();
     unsigned parser_length = m_image_mgr->getImgHeight();
     unsigned idx;
+    pixel_t_signed *deltaX = new pixel_t_signed[max_pixel_cnt];
+    pixel_t_signed *deltaY = new pixel_t_signed[max_pixel_cnt];
+    assert(nullptr != deltaX);
+    assert(nullptr != deltaY);
+
     // compute delta X ***************************
     // deltaX = f(x+1) - f(x-1)
-    for(unsigned i = 0; parser_length; ++i)
+    for(unsigned i = 0; i < parser_length; ++i)
     {
         idx = offset * i; // current position X per line
 
         // gradient at the first pixel of each line
         // note: the edge,pix[idx-1] is NOT exsit
-        deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx].red;
-        deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx].green;
-        deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx].blue;
+        deltaX[idx].red = (int16_t)(in_pixels[idx+1].red - in_pixels[idx].red);
+        deltaX[idx].green = (int16_t)(in_pixels[idx+1].green - in_pixels[idx].green);
+        deltaX[idx].blue = (int16_t)(in_pixels[idx+1].blue - in_pixels[idx].blue);
 
         // gradients where NOT edge
         for(unsigned j = 1; j < offset-1; ++j)
         {
             idx++;
-            deltaX[idx].red = in_pixels[idx+1].red - in_pixels[idx-1].red;
-            deltaX[idx].green = in_pixels[idx+1].green - in_pixels[idx-1].green;
-            deltaX[idx].blue = in_pixels[idx+1].blue - in_pixels[idx-1].blue;
+            deltaX[idx].red = (int16_t)(in_pixels[idx+1].red - in_pixels[idx-1].red);
+            deltaX[idx].green = (int16_t)(in_pixels[idx+1].green - in_pixels[idx-1].green);
+            deltaX[idx].blue = (int16_t)(in_pixels[idx+1].blue - in_pixels[idx-1].blue);
         }
 
         // gradient at the last pixel of each line
         idx++;
-        deltaX[idx].red = in_pixels[idx].red - in_pixels[idx-1].red;
-        deltaX[idx].green = in_pixels[idx].green - in_pixels[idx-1].green;
-        deltaX[idx].blue = in_pixels[idx].blue - in_pixels[idx-1].blue;
+        deltaX[idx].red = (int16_t)(in_pixels[idx].red - in_pixels[idx-1].red);
+        deltaX[idx].green = (int16_t)(in_pixels[idx].green - in_pixels[idx-1].green);
+        deltaX[idx].blue = (int16_t)(in_pixels[idx].blue - in_pixels[idx-1].blue);
     }
 
     // compute delta Y ***************************
@@ -209,75 +199,52 @@ void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_t_s
     {
         idx = j;    // current Y position per column
         // gradient at the first pixel
-        deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx].red;
-        deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx].green;
-        deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx].blue;
+        deltaY[idx].red = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx].red);
+        deltaY[idx].green = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx].green);
+        deltaY[idx].blue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx].blue);
 
         // gradients for NOT edge pixels
         for(unsigned i = 1; i < parser_length-1; ++i)
         {
             idx += offset;
-            deltaY[idx].red = in_pixels[idx+offset].red - in_pixels[idx-offset].red;
-            deltaY[idx].green = in_pixels[idx+offset].green - in_pixels[idx-offset].green;
-            deltaY[idx].blue = in_pixels[idx+offset].blue - in_pixels[idx-offset].blue;
+            deltaY[idx].red = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx-offset].red);
+            deltaY[idx].green = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx-offset].green);
+            deltaY[idx].blue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx-offset].blue);
         }
 
         // gradient at the last pixel of each column
         idx += offset;
-        deltaY[idx].red = in_pixels[idx].red - in_pixels[idx-offset].red;
-        deltaY[idx].green = in_pixels[idx].green - in_pixels[idx-offset].green;
-        deltaY[idx].blue = in_pixels[idx].blue - in_pixels[idx-offset].blue;
+        deltaY[idx].red = (int16_t)(in_pixels[idx].red - in_pixels[idx-offset].red);
+        deltaY[idx].green = (int16_t)(in_pixels[idx].green - in_pixels[idx-offset].green);
+        deltaY[idx].blue = (int16_t)(in_pixels[idx].blue - in_pixels[idx-offset].blue);
     }
+    for(idx = 0; idx < max_pixel_cnt; idx++)
+    {
+        deltaX_channel[idx] = 0.2989 * deltaX[idx].red + 0.5870 * deltaX[idx].green + 0.1140 * deltaX[idx].blue;
+	deltaY_channel[idx] = 0.2989 * deltaY[idx].red + 0.5870 * deltaY[idx].green + 0.1140 * deltaY[idx].blue; 
+    }
+    delete [] deltaX;
+    delete [] deltaY;
 }
 
 
 ///
 /// \brief Compute magnitude of gradient(deltaX & deltaY) per pixel.
 ///
-void CannyEdgeDetector::magnitude(pixel_t_signed *deltaX, pixel_t_signed *deltaY, pixel_t_float *mag)
+void CannyEdgeDetector::magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *out_pixel, unsigned max_pixel_cnt)
 {
     unsigned idx;
     unsigned offset = m_image_mgr->getImgWidth();
     unsigned parser_length = m_image_mgr->getImgHeight();
-
+ 
     //computation
     idx = 0;
     for(unsigned i = 0; i < parser_length; ++i)
         for(unsigned j = 0; j < offset; ++j, ++idx)
         {
-            mag[idx].red =  (float)(sqrt((double)deltaX[idx].red*deltaX[idx].red + 
-                            (double)deltaY[idx].red*deltaY[idx].red) + 0.5);
-
-            mag[idx].green =    (float)(sqrt((double)deltaX[idx].green*deltaX[idx].green +
-                                (double)deltaY[idx].green*deltaY[idx].green) + 0.5);
-
-            mag[idx].blue = (float)(sqrt((double)deltaX[idx].blue*deltaX[idx].blue +
-                            (double)deltaY[idx].blue*deltaY[idx].blue) + 0.5);
+            out_pixel[idx] =  (float)(sqrt((double)deltaX[idx]*deltaX[idx] + 
+                            (double)deltaY[idx]*deltaY[idx]) + 0.5);
         }
-}
-
-///
-/// \brief Converts an RGB pixel to grayscale
-///
-void CannyEdgeDetector::rgb2gray(pixel_t_signed *in_pixel, pixel_channel_t_signed *out_pixel, unsigned max_pixel_cnt)
-{
-    for(unsigned idx = 0; idx < max_pixel_cnt; idx++)
-    {
-        out_pixel[idx] = 0.2989 * in_pixel[idx].red + 0.5870 * in_pixel[idx].green + 0.1140 * in_pixel[idx].blue; 
-    }
-    
-}
-
-///
-/// \brief Converts an RGB pixel to grayscale in float datatype
-///
-void CannyEdgeDetector::rgb2gray_float(pixel_t_float *in_pixel, float *out_pixel, unsigned max_pixel_cnt)
-{
-    for(unsigned idx = 0; idx < max_pixel_cnt; idx++)
-    {
-        out_pixel[idx] = 0.2989 * in_pixel[idx].red + 0.5870 * in_pixel[idx].green + 0.1140 * in_pixel[idx].blue; 
-    }
-    
 }
 
 ///
