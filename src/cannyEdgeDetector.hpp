@@ -31,20 +31,20 @@ class CannyEdgeDetector : public EdgeDetector
         void compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel,unsigned max_pixel_cnt);
         void magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned max_pixel_cnt);
         void suppress_non_max(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *nms);
-        void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+        void apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, pixel_channel_t hi_thld, pixel_channel_t lo_thld);
 
         /* CUDA/GPU implementation */
         //void cu_apply_gaussian_filter();
         //void cu_compute_intensity_gradient();
         //void cu_suppress_non_max();
         //void cu_apply_double_threshold();
-        //void cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+        //void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, pixel_channel_t hi_thld, pixel_channel_t lo_thld);
 
         /* helper functions */
-        void trace_immed_neighbors(pixel_t *out_pixels, pixel_t *in_pixels, unsigned idx, pixel_t t_low);
+        void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, unsigned idx, pixel_channel_t t_low);
 
         /* member variables */
-        pixel_t m_edge; // defines an edge for image this detector was initialized with
+        pixel_channel_t m_edge; // defines an edge for image this detector was initialized with
 };
 
 #endif // _CANNY_EDGE_DETECTOR_HPP_

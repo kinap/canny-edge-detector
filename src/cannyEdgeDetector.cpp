@@ -12,8 +12,8 @@ CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
 {
     /* a strong edge is the largest value a channel can hold */
     /* e.g. 8 bit channel: (1 << 8) - 1 -> b1_0000_0000 - b1 -> 0_1111_1111 */
-    unsigned max_val = (1 << image->getChannelDepth()) - 1;
-    m_edge.red = max_val;
+    //unsigned max_val = (1 << image->getChannelDepth()) - 1;
+    m_edge = 0xFFFF;
 }
 
 CannyEdgeDetector::~CannyEdgeDetector(void)
@@ -38,6 +38,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
 	pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
 	pixel_channel_t *threshold_pixels = new pixel_channel_t[input_pixel_length];
+	pixel_channel_t *final_pixels = new pixel_channel_t[input_pixel_length];
 
 	pixel_t *test_image = new pixel_t[input_pixel_length];
 
@@ -46,6 +47,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	assert(nullptr != deltaX_gray);
 	assert(nullptr != deltaY_gray);
 	assert(nullptr != threshold_pixels);
+	assert(nullptr != final_pixels);
 	assert(nullptr != test_image);
 
         /* run canny edge detection core */
@@ -57,6 +59,10 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
 	suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
 
+    pixel_channel_t hi = 0xCCC;
+    pixel_channel_t lo = 0xF5;
+    apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
+
     unsigned idx;
     unsigned offset = m_image_mgr->getImgWidth();
     unsigned parser_length = m_image_mgr->getImgHeight();
@@ -66,12 +72,11 @@ void CannyEdgeDetector::detect_edges(bool serial)
     for(unsigned i = 0; i < parser_length; ++i)
         for(unsigned j = 0; j < offset; ++j, ++idx)
         {
-            test_image[idx].red = threshold_pixels[idx];
-	    test_image[idx].green = threshold_pixels[idx];
-	    test_image[idx].blue = threshold_pixels[idx];
+            test_image[idx].red = final_pixels[idx];
+	    test_image[idx].green = final_pixels[idx];
+	    test_image[idx].blue = final_pixels[idx];
         }
 
-	// TODO dan apply hysteresis
         /* copy edge detected image back into image mgr class so we can write it out later */
         memcpy(orig_pixels, test_image, input_pixel_length * sizeof(pixel_t));
 
@@ -80,6 +85,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	delete [] deltaX_gray;
 	delete [] deltaY_gray;
 	delete [] threshold_pixels;
+	delete [] final_pixels;
 	delete [] test_image;
 
     } else { // GPGPU
@@ -398,23 +404,23 @@ void CannyEdgeDetector::suppress_non_max(pixel_channel_t *mag, pixel_channel_t_s
 /// a) remove weak edges 
 /// b) connect "split edges" (to preserve weak-touching-strong edges)
 ///
-/// These loops are good candidates for GPU parallelization
-///
-void CannyEdgeDetector::apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t t_high, pixel_t t_low)
+void CannyEdgeDetector::apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, pixel_channel_t t_high, pixel_channel_t t_low)
 {
     /* skip first and last rows and columns, since we'll check them as surrounding neighbors of 
      * the adjacent rows and columns */
-    for (unsigned i = 1; i < m_image_mgr->getImgWidth() - 1; i++) {
-        for (unsigned j = 1; j < m_image_mgr->getImgHeight() - 1; j++) {
-            unsigned idx = m_image_mgr->getImgWidth() * i + j;
+    unsigned offset = m_image_mgr->getImgWidth();
+    unsigned parser_length = m_image_mgr->getImgHeight();
+    for(unsigned i = 1; i < parser_length - 1; i++) {
+        for(unsigned j = 1; j < offset - 1; j++) {
+            unsigned t = (m_image_mgr->getImgWidth() * i) + j;
             /* if our input is above the high threshold and the output hasn't already marked it as an edge */
-            if ((in_pixels[idx] > t_high) && (out_pixels[idx] != m_edge)) {
+            if ((in_pixels[t] > t_high) && (out_pixels[t] != m_edge)) {
                 /* mark as strong edge */
-                out_pixels[idx] = m_edge;
+                out_pixels[t] = m_edge;
 
                 /* check 8 immediately surrounding neighbors 
                  * if any of the neighbors are above the low threshold, preserve edge */
-                trace_immed_neighbors(out_pixels, in_pixels, idx, t_low);
+                trace_immed_neighbors(out_pixels, in_pixels, t, t_low);
             }
         }
     }
@@ -424,7 +430,7 @@ void CannyEdgeDetector::apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels
 /// \brief This function looks at the 8 surrounding neighbor pixels of a given pixel and 
 /// marks them as edges if they're above a low threshold value. Used in hysteresis.
 ///
-void CannyEdgeDetector::trace_immed_neighbors(pixel_t *out_pixels, pixel_t *in_pixels, unsigned idx, pixel_t t_low)
+void CannyEdgeDetector::trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, unsigned idx, pixel_channel_t t_low)
 {
     assert(nullptr != in_pixels);
     assert(nullptr != out_pixels);
