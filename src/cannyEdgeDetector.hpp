@@ -10,12 +10,6 @@ struct pixel_t_signed {
     int16_t blue;
 };
 
-struct pixel_t_float {
-    float red;
-    float green;
-    float blue;
-};
-
 typedef int16_t pixel_channel_t_signed;
 
 ///
@@ -35,8 +29,8 @@ class CannyEdgeDetector : public EdgeDetector
         /* CPU implementation */
         void apply_gaussian_filter(pixel_t *blurred_pixels, pixel_t *input_pixels);
         void compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel,unsigned max_pixel_cnt);
-        void magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *out_pixel, unsigned max_pixel_cnt);
-        void suppress_non_max(float *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *nms);
+        void magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned max_pixel_cnt);
+        void suppress_non_max(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *nms);
         void apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
 
         /* CUDA/GPU implementation */

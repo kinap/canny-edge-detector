@@ -34,13 +34,13 @@ void CannyEdgeDetector::detect_edges(bool serial)
         std::cout << "  executing serially" << std::endl;
         /* allocate intermeditate buffers */
         pixel_t *buf0 = new pixel_t[input_pixel_length];
-	float *magnitude_float = new float[input_pixel_length]; 
+	pixel_channel_t *magnitude_v = new pixel_channel_t[input_pixel_length]; 
 	pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
 	pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
-	float *threshold_pixels = new float[input_pixel_length];
+	pixel_channel_t *threshold_pixels = new pixel_channel_t[input_pixel_length];
 
         assert(nullptr != buf0);
-	assert(nullptr != magnitude_float);
+	assert(nullptr != magnitude_v);
 	assert(nullptr != deltaX_gray);
 	assert(nullptr != deltaY_gray);
 	assert(nullptr != threshold_pixels);
@@ -50,15 +50,15 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
 	compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
 	
-	magnitude(deltaX_gray, deltaY_gray, magnitude_float, input_pixel_length);
+	magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
 
-	suppress_non_max(magnitude_float, deltaX_gray, deltaY_gray, threshold_pixels);
+	suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
 	// TODO dan apply hysteresis
         /* copy edge detected image back into image mgr class so we can write it out later */
         memcpy(orig_pixels, buf0, input_pixel_length * sizeof(pixel_t));
 
         delete [] buf0;
-	delete [] magnitude_float;
+	delete [] magnitude_v;
 	delete [] deltaX_gray;
 	delete [] deltaY_gray;
 	delete [] threshold_pixels;
@@ -231,7 +231,7 @@ void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_cha
 ///
 /// \brief Compute magnitude of gradient(deltaX & deltaY) per pixel.
 ///
-void CannyEdgeDetector::magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *out_pixel, unsigned max_pixel_cnt)
+void CannyEdgeDetector::magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned max_pixel_cnt)
 {
     unsigned idx;
     unsigned offset = m_image_mgr->getImgWidth();
@@ -242,7 +242,7 @@ void CannyEdgeDetector::magnitude(pixel_channel_t_signed *deltaX, pixel_channel_
     for(unsigned i = 0; i < parser_length; ++i)
         for(unsigned j = 0; j < offset; ++j, ++idx)
         {
-            out_pixel[idx] =  (float)(sqrt((double)deltaX[idx]*deltaX[idx] + 
+            out_pixel[idx] =  (pixel_channel_t)(sqrt((double)deltaX[idx]*deltaX[idx] + 
                             (double)deltaY[idx]*deltaY[idx]) + 0.5);
         }
 }
@@ -253,14 +253,14 @@ void CannyEdgeDetector::magnitude(pixel_channel_t_signed *deltaX, pixel_channel_
 /// then the center pixel is set to zero.
 /// This process results in one pixel wide ridges.
 ///
-void CannyEdgeDetector::suppress_non_max(float *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, float *nms)
+void CannyEdgeDetector::suppress_non_max(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *nms)
 {
     unsigned t = 0;
     unsigned offset = m_image_mgr->getImgWidth();
     unsigned parser_length = m_image_mgr->getImgHeight();
     float alpha;
     float mag1, mag2;
-    const unsigned char SUPPRESSED = 0;
+    const pixel_channel_t SUPPRESSED = 0;
 
     // put zero all boundaries of image
     // TOP edge line of the image
@@ -366,8 +366,7 @@ void CannyEdgeDetector::suppress_non_max(float *mag, pixel_channel_t_signed *del
                     nms[t] = SUPPRESSED;
                 else
                 {
-                    if(mag[t] > 255) nms[t] = 255;
-                    else nms[t] = (float)mag[t];
+                    nms[t] = mag[t];
                 }
 
             } // END OF ELSE (mag != 0)
