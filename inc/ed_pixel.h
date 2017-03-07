@@ -38,4 +38,12 @@ struct pixel_t {
     }
 };
 
+struct pixel_t_signed {
+    int16_t red;
+    int16_t green;
+    int16_t blue;
+};
+
+typedef int16_t pixel_channel_t_signed;
+
 #endif // _ED_PIXEL_H_

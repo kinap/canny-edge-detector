@@ -4,14 +4,6 @@
 
 #include "edgeDetector.hpp"
 
-struct pixel_t_signed {
-    int16_t red;
-    int16_t green;
-    int16_t blue;
-};
-
-typedef int16_t pixel_channel_t_signed;
-
 ///
 /// \brief Canny edge dectectior
 ///

@@ -2,6 +2,7 @@
 #ifndef _EDGE_DETECTOR_HPP_
 #define _EDGE_DETECTOR_HPP_
 
+#include "ed_pixel.h"
 #include "imgMgr.hpp"
 
 ///
