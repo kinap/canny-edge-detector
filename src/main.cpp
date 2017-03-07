@@ -36,6 +36,5 @@ int main(int argc, char** argv)
     /* write results */
     img_mgr->write_image(args.outFile);
 
-    test_saxpy();
     return ED_SUCCESS;
 }

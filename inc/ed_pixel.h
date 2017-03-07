@@ -2,6 +2,8 @@
 #ifndef _ED_PIXEL_H_
 #define _ED_PIXEL_H_
 
+#include <stdint.h>
+
 #define pixel_channel_t uint16_t
 
 struct pixel_t {
