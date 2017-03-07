@@ -4,22 +4,9 @@
 #define EDGE 0xFFFF
 
 __global__
-void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
-                        pixel_channel_t t_high, pixel_channel_t t_low, 
-                        unsigned img_height, unsigned img_width)
+void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols) 
 {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iy = blockIdx.y * blockDim.y + threadIdx.y;
-    int idx = ix; // TODO fix indexing
-    if (iy <= img_height && ix <= img_width) {
 
-        // apply high threshold
-        if ((in_pixels[idx] > t_high) && (out_pixels[idx] != EDGE)) {
-            out_pixels[idx] = EDGE;
-        }
-        // apply low threshold to neighbors
-        trace_immed_neighbors(out_pixels, in_pixels, idx, t_low, img_width);
-    }
 }
 
 __device__
@@ -67,13 +54,25 @@ void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixe
 }
 
 __global__
-void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols) 
+void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
+                        pixel_channel_t t_high, pixel_channel_t t_low, 
+                        unsigned img_height, unsigned img_width)
 {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y;
+    int idx = ix; // TODO fix indexing
+    if (iy <= img_height && ix <= img_width) {
 
+        // apply high threshold
+        if ((in_pixels[idx] > t_high) && (out_pixels[idx] != EDGE)) {
+            out_pixels[idx] = EDGE;
+        }
+        // apply low threshold to neighbors
+        trace_immed_neighbors(out_pixels, in_pixels, idx, t_low, img_width);
+    }
 }
 
-
-void cu_detectEdges(pixel_t *orig_pixels, int rows, int cols) 
+void cu_detect_edges(pixel_t *orig_pixels, int rows, int cols) 
 {
     pixel_t *in_pixels, *out_pixels;
     int input_pixel_length = rows * cols;
@@ -96,11 +95,4 @@ void cu_detectEdges(pixel_t *orig_pixels, int rows, int cols)
     cudaFree(in_pixels);
     cudaFree(out_pixels);
 }
-
-
-
-
-
-
-
 

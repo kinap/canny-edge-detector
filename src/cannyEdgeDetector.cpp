@@ -94,7 +94,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
         /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
-    cu_detectEdges(orig_pixels, rows, cols);
+    cu_detect_edges(orig_pixels, rows, cols);
     }
 }
 
