@@ -1,12 +1,7 @@
 
-#include <stdio.h>
-#include <string.h>
-#include "ed_pixel.h"
+#include "canny.h"
 
 #define EDGE 0xFFFF
-
-__device__ void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
-                                     unsigned idx, pixel_channel_t t_low, unsigned img_width);
 
 __global__
 void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
@@ -70,4 +65,42 @@ void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixe
         out_pixels[se] = EDGE;
     }
 }
+
+__global__
+void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols) 
+{
+
+}
+
+
+void cu_detectEdges(pixel_t *orig_pixels, int rows, int cols) 
+{
+    pixel_t *in_pixels, *out_pixels;
+    int input_pixel_length = rows * cols;
+
+    /* allocate device memory */
+    cudaMalloc(&in_pixels, input_pixel_length*sizeof(pixel_t));
+    cudaMalloc(&out_pixels, input_pixel_length*sizeof(pixel_t));
+
+    /* copy x, y to GPU device */
+    cudaMemcpy(in_pixels, orig_pixels, input_pixel_length*sizeof(pixel_t), cudaMemcpyHostToDevice);
+      
+    cu_apply_gaussian_filter<<<rows, cols>>>(in_pixels, out_pixels, rows, cols);
+    //cu_compute_intensity_gradient();
+    //cu_suppress_non_max();
+    //cu_apply_double_threshold();
+    //cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+
+    cudaMemcpy(orig_pixels, out_pixels, input_pixel_length * sizeof(pixel_t), cudaMemcpyDeviceToHost);
+
+    cudaFree(in_pixels);
+    cudaFree(out_pixels);
+}
+
+
+
+
+
+
+
 

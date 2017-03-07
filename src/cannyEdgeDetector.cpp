@@ -6,6 +6,7 @@
 #include <math.h>
 #define KERNEL_SIZE 7 //defines edge length of kernel. Must be odd Value
 #include "cannyEdgeDetector.hpp"
+#include "canny.h"
 
 CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
 : EdgeDetector(image)
@@ -29,6 +30,8 @@ void CannyEdgeDetector::detect_edges(bool serial)
 {
     pixel_t *orig_pixels = m_image_mgr->getPixelHandle();
     unsigned input_pixel_length = m_image_mgr->getPixelCount();
+    int rows = m_image_mgr->getImgHeight();
+    int cols = m_image_mgr->getImgWidth();
 
     if (true == serial) {
         std::cout << "  executing serially" << std::endl;
@@ -91,11 +94,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
         /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
-        //cu_apply_gaussian_filter();
-        //cu_compute_intensity_gradient();
-        //cu_suppress_non_max();
-        //cu_apply_double_threshold();
-        //cu_apply_hysteresis(pixel_t *out_pixels, pixel_t *in_pixels, pixel_t hi_thld, pixel_t lo_thld);
+    cu_detectEdges(orig_pixels, rows, cols);
     }
 }
 
