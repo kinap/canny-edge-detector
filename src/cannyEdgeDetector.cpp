@@ -4,7 +4,6 @@
 #include <string.h> // memcpy
 #define _USE_MATH_DEFINES
 #include <math.h>
-#define KERNEL_SIZE 7 //defines edge length of kernel. Must be odd Value
 #include "cannyEdgeDetector.hpp"
 #include "canny.h"
 
@@ -33,6 +32,42 @@ void CannyEdgeDetector::detect_edges(bool serial)
     int rows = m_image_mgr->getImgHeight();
     int cols = m_image_mgr->getImgWidth();
 
+    //create convolution kernel for Gaussian Blur
+    double kernel[KERNEL_SIZE][KERNEL_SIZE];
+    double stDev;
+    double scaleVal;
+    int i;
+    int j;
+
+    //populate Convolution Kernel
+    stDev = (double)KERNEL_SIZE/3;
+
+    scaleVal = 1;
+    for (i = 0; i < KERNEL_SIZE; ++i) {
+        for (j = 0; j < KERNEL_SIZE; ++j) {
+            double xComp = pow((i - KERNEL_SIZE/2), 2);
+            double yComp = pow((j - KERNEL_SIZE/2), 2);
+
+            double stDevSq = pow(stDev, 2);
+            double pi = M_PI;
+
+            //calculate the value at each index of the Kernel
+            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
+            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
+
+            //populate Kernel
+            kernel[i][j] = kernelVal;
+
+            if (i==0 && j==0) 
+            {
+                scaleVal = kernel[0][0];
+            }
+
+            //normalize Kernel
+            kernel[i][j] = kernel[i][j] / scaleVal;
+        }
+    }
+
     if (true == serial) {
         std::cout << "  executing serially" << std::endl;
         /* allocate intermeditate buffers */
@@ -54,7 +89,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
 	assert(nullptr != test_image);
 
         /* run canny edge detection core */
-        apply_gaussian_filter(buf0, orig_pixels);
+        apply_gaussian_filter(buf0, orig_pixels, kernel);
 
 	compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
 	
@@ -94,20 +129,19 @@ void CannyEdgeDetector::detect_edges(bool serial)
     } else { // GPGPU
         std::cout << "  executing in parallel on GPU" << std::endl;
         /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
-    cu_detect_edges(orig_pixels, rows, cols);
+        cu_detect_edges(orig_pixels, rows, cols, kernel);
     }
 }
 
 ///
 ///This function is used to slightly blur the image to remove noise
 ///
-void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_pixels)
+void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_pixels, double kernel[KERNEL_SIZE][KERNEL_SIZE])
 {
+    /*
     double kernel[KERNEL_SIZE][KERNEL_SIZE];
     double stDev;
     double scaleVal;
-    int rows = m_image_mgr->getImgHeight();
-    int cols = m_image_mgr->getImgWidth();
     int i;
     int j;
 
@@ -140,8 +174,10 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
             //normalize Kernel
             kernel[i][j] = kernel[i][j] / scaleVal;
         }
-    }
+    }*/
 
+    int rows = m_image_mgr->getImgHeight();
+    int cols = m_image_mgr->getImgWidth();
     double kernelSum;
     double redPixelVal;
     double greenPixelVal;
@@ -150,8 +186,8 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
     //Apply Kernel to image
     for (int pixNum = 0; pixNum < rows * cols; ++pixNum) {
 
-        for (i = 0; i < KERNEL_SIZE; ++i) {
-            for (j = 0; j < KERNEL_SIZE; ++j) {                   
+        for (int i = 0; i < KERNEL_SIZE; ++i) {
+            for (int j = 0; j < KERNEL_SIZE; ++j) {                   
 
                 //check edge cases, if within bounds, apply filter
                 if (((pixNum + ((i - ((KERNEL_SIZE - 1) / 2))*cols) + j - ((KERNEL_SIZE - 1) / 2)) >= 0)

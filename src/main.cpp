@@ -31,10 +31,11 @@ int main(int argc, char** argv)
     CannyEdgeDetector ced(img_mgr);
 
     /* run edge detection algorithm */
-    ced.detect_edges(args.serial);
+    ced.detect_edges(false);
 
     /* write results */
     img_mgr->write_image(args.outFile);
+    std::cout << "finished image" << std::endl;
 
     return ED_SUCCESS;
 }
