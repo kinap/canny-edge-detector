@@ -7,7 +7,6 @@
 #define STRONG_EDGE 0xFFFF
 #define NON_EDGE 0x0
 
-// TODO handle overlapping pixels (strong edges, neighbors)
 // TODO nice viso c
 
 #define RGB2GRAY_CONST_ARR_SIZE 3
@@ -69,10 +68,8 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
     // deltaX = f(x+1) - f(x-1)
     
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if ((idx > offset)                              /* skip first row */
-        && (idx < (parser_length * offset) - offset)   /* skip last row */
-        && ((idx % offset) < (offset - 1))          /* skip last column */
-        && ((idx % offset) > (0)) )                 /* skip first column */
+    /* condition here skips first and last row */
+    if ((idx > offset) && (idx < (parser_length * offset) - offset))
     {
         int16_t deltaXred;
         int16_t deltaYred;
@@ -81,6 +78,7 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
         int16_t deltaXblue;
         int16_t deltaYblue;
 
+        /* first column */
         if((idx % offset) == 0)
         {
             // gradient at the first pixel of each line
@@ -94,6 +92,7 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx].blue);
         }
+        /* last column */
         else if((idx % offset) == (offset - 1))
         {
             deltaXred = (int16_t)(in_pixels[idx].red - in_pixels[idx-1].red);
