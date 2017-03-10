@@ -134,7 +134,6 @@ void cu_magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY
         }
 }
 
-
 ///
 /// \brief Non Maximal Suppression
 /// If the centre pixel is not greater than neighboured pixels in the direction,
@@ -252,10 +251,33 @@ void cu_suppress_non_max(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, p
                          nms[idx] = mag[idx];
                     }
 
-                } // END OF ELSE (mag != 0)
-            } // END OF FOR(j)
-        } // END OF FOR(i)
-    }
+            } // END OF ELSE (mag != 0)
+        } // END OF FOR(j)
+    } // END OF FOR(i)
+}
+
+
+void cu_test_nonmax(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *nms, unsigned rows, unsigned cols)
+{
+    pixel_channel_t *magnitude_v;
+    pixel_channel_t *d_nms;
+    pixel_channel_t_signed *deltaX_gray;
+    pixel_channel_t_signed *deltaY_gray;
+
+    cudaMalloc((void**) &magnitude_v, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &d_nms, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &deltaX_gray, sizeof(pixel_channel_t_signed)*rows*cols);
+    cudaMalloc((void**) &deltaY_gray, sizeof(pixel_channel_t_signed)*rows*cols);
+
+    cudaMemcpy(magnitude_v, mag, rows*cols*sizeof(pixel_channel_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(deltaX_gray, deltaX, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
+    cudaMemcpy(deltaY_gray, deltaY, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
+
+    cu_suppress_non_max<<<(rows*cols)/1024, 1024>>>(magnitude_v, deltaX_gray, deltaY_gray, d_nms, rows, cols);
+
+    cudaMemcpy(nms, d_nms, rows*cols*sizeof(pixel_channel_t), cudaMemcpyDeviceToHost);
+    
+}
 
 __device__
 void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
@@ -319,6 +341,23 @@ void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels
         // apply low threshold to neighbors
         trace_immed_neighbors(out_pixels, in_pixels, idx, t_low, img_width);
     }
+}
+
+void cu_test_mag(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned rows, unsigned cols)
+{
+    pixel_channel_t *magnitude_v;
+    pixel_channel_t_signed *deltaX_gray;
+    pixel_channel_t_signed *deltaY_gray;
+
+    cudaMalloc((void**) &magnitude_v, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &deltaX_gray, sizeof(pixel_channel_t_signed)*rows*cols);
+    cudaMalloc((void**) &deltaY_gray, sizeof(pixel_channel_t_signed)*rows*cols);
+
+    cudaMemcpy(deltaX_gray, deltaX, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
+    cudaMemcpy(deltaY_gray, deltaY, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
+    cu_magnitude<<<(rows*cols)/1024, 1024>>>(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
+    cudaMemcpy(out_pixel, magnitude_v, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
+
 }
 
 void cu_detect_edges(pixel_t *orig_pixels, int rows, int cols, double kernel[KERNEL_SIZE][KERNEL_SIZE]) 

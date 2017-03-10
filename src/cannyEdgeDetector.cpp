@@ -93,9 +93,11 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
         compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
         
+        //cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
         magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
 
-        suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
+        cu_test_nonmax(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels, rows, cols);
+        //suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
 
         pixel_channel_t hi = 0xFCC;
         pixel_channel_t lo = 0xF5;
@@ -109,9 +111,9 @@ void CannyEdgeDetector::detect_edges(bool serial)
         idx = 0;
         for(unsigned i = 0; i < parser_length; ++i) {
             for(unsigned j = 0; j < offset; ++j, ++idx) {
-                final_image[idx].red = final_pixels[idx];
-                final_image[idx].green = final_pixels[idx];
-                final_image[idx].blue = final_pixels[idx];
+                final_image[idx].red = threshold_pixels[idx];
+                final_image[idx].green = threshold_pixels[idx];
+                final_image[idx].blue = threshold_pixels[idx];
             }
         }
 
