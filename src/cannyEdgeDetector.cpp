@@ -69,7 +69,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
     }
 
     if (true == serial) {
-        std::cout << "  executing serially" << std::endl;
+        std::cout << "  executing serially on CPU" << std::endl;
         /* allocate intermeditate buffers */
         pixel_t *buf0 = new pixel_t[input_pixel_length];
         pixel_channel_t *magnitude_v = new pixel_channel_t[input_pixel_length]; 
@@ -77,7 +77,6 @@ void CannyEdgeDetector::detect_edges(bool serial)
         pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
         pixel_channel_t *threshold_pixels = new pixel_channel_t[input_pixel_length];
         pixel_channel_t *final_pixels = new pixel_channel_t[input_pixel_length];
-
         pixel_t *final_image = new pixel_t[input_pixel_length];
 
         assert(nullptr != buf0);
@@ -93,27 +92,27 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
         compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
         
-        //cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
-        magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
+        cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
+        //magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
 
         cu_test_nonmax(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels, rows, cols);
         //suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
 
-        pixel_channel_t hi = 0xFCC;
-        pixel_channel_t lo = 0xF5;
-        apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
+        cu_test_hysteresis(threshold_pixels, final_pixels, m_image_mgr->getImgHeight(), m_image_mgr->getImgWidth());
+        //pixel_channel_t hi = 0xFCC;
+        //pixel_channel_t lo = 0xF5;
+        //apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
 
-        unsigned idx;
+        /* convert single channel to grayscale final image */
+        unsigned idx = 0;
         unsigned offset = m_image_mgr->getImgWidth();
         unsigned parser_length = m_image_mgr->getImgHeight();
      
-        //computation
-        idx = 0;
         for(unsigned i = 0; i < parser_length; ++i) {
             for(unsigned j = 0; j < offset; ++j, ++idx) {
-                final_image[idx].red = threshold_pixels[idx];
-                final_image[idx].green = threshold_pixels[idx];
-                final_image[idx].blue = threshold_pixels[idx];
+                final_image[idx].red = final_pixels[idx];
+                final_image[idx].green = final_pixels[idx];
+                final_image[idx].blue = final_pixels[idx];
             }
         }
 
