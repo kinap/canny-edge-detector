@@ -90,18 +90,19 @@ void CannyEdgeDetector::detect_edges(bool serial)
         /* run canny edge detection core */
         apply_gaussian_filter(buf0, orig_pixels, kernel);
 
-        compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
+        //compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
+        cu_test_gradient(buf0, deltaX_gray, deltaY_gray, rows, cols);
         
-        cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
-        //magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
+        //cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
+        magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
 
-        cu_test_nonmax(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels, rows, cols);
-        //suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
+        //cu_test_nonmax(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels, rows, cols);
+        suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
 
-        cu_test_hysteresis(threshold_pixels, final_pixels, m_image_mgr->getImgHeight(), m_image_mgr->getImgWidth());
-        //pixel_channel_t hi = 0xFCC;
-        //pixel_channel_t lo = 0xF5;
-        //apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
+        //cu_test_hysteresis(threshold_pixels, final_pixels, m_image_mgr->getImgHeight(), m_image_mgr->getImgWidth());
+        pixel_channel_t hi = 0xFCC;
+        pixel_channel_t lo = 0xF5;
+        apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
 
         /* convert single channel to grayscale final image */
         unsigned idx = 0;

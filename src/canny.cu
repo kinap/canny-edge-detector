@@ -63,20 +63,16 @@ void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows,
 /// \brief Compute gradient (first order derivative x and y)
 ///
 __global__
-void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel, unsigned parser_length, unsigned offset, float *RGB_kernel)
+void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel, unsigned parser_length, unsigned offset)
 {
-    //copy kernel array from global memory to a shared array
-    __shared__ float rgb_kernel_shared[RGB2GRAY_CONST_ARR_SIZE];
-    for (int i = 0; i < RGB2GRAY_CONST_ARR_SIZE; ++i) {
-            rgb_kernel_shared[i] = RGB_kernel[i];
-    }
     // compute delta X ***************************
     // deltaX = f(x+1) - f(x-1)
     
-    __syncthreads();
-
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= 0 && idx < parser_length * offset)
+    if ((idx > offset)                              /* skip first row */
+        && (idx < (parser_length * offset) - offset)   /* skip last row */
+        && ((idx % offset) < (offset - 1))          /* skip last column */
+        && ((idx % offset) > (0)) )                 /* skip first column */
     {
         int16_t deltaXred;
         int16_t deltaYred;
@@ -117,10 +113,8 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx-offset].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx-offset].blue);
         }
-	//deltaY_channel[idx] = deltaYred;
-        //deltaX_channel[idx] = deltaXred;
-        deltaX_channel[idx] = (int16_t)(rgb_kernel_shared[0] * deltaXred + rgb_kernel_shared[1] * deltaXgreen + rgb_kernel_shared[2] * deltaXblue);
-        deltaY_channel[idx] = (int16_t)(rgb_kernel_shared[0] * deltaYred + rgb_kernel_shared[1] * deltaYgreen + rgb_kernel_shared[2] * deltaYblue); 
+        deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+        deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
     }
 }
 
@@ -375,6 +369,28 @@ void cu_hysteresis_low(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
     }
 }
 
+//*****************************************************************************************
+// Test/Debug hooks for separate kernels
+//*****************************************************************************************
+
+void cu_test_gradient(pixel_t *buf0, pixel_channel_t_signed *deltaX_gray, pixel_channel_t_signed *deltaY_gray, unsigned rows, unsigned cols)
+{
+    pixel_t *in_pixels;
+    pixel_channel_t_signed *deltaX;
+    pixel_channel_t_signed *deltaY;
+
+    cudaMalloc((void**) &in_pixels, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &deltaX, sizeof(pixel_channel_t_signed)*rows*cols);
+    cudaMalloc((void**) &deltaY, sizeof(pixel_channel_t_signed)*rows*cols);
+
+    cudaMemcpy(in_pixels, buf0, rows*cols*sizeof(pixel_channel_t), cudaMemcpyHostToDevice);
+
+    cu_compute_intensity_gradient<<<(rows*cols)/1024, 1024>>>(in_pixels, deltaX, deltaY, rows, cols);
+
+    cudaMemcpy(deltaX_gray, deltaX, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
+    cudaMemcpy(deltaY_gray, deltaY, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
+}
+
 void cu_test_mag(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned rows, unsigned cols)
 {
     pixel_channel_t *magnitude_v;
@@ -387,7 +403,9 @@ void cu_test_mag(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY,
 
     cudaMemcpy(deltaX_gray, deltaX, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
     cudaMemcpy(deltaY_gray, deltaY, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyHostToDevice);
+
     cu_magnitude<<<(rows*cols)/1024, 1024>>>(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
+
     cudaMemcpy(out_pixel, magnitude_v, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
 
 }
