@@ -68,15 +68,16 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
     // deltaX = f(x+1) - f(x-1)
     
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
     /* condition here skips first and last row */
     if ((idx > offset) && (idx < (parser_length * offset) - offset))
     {
-        int16_t deltaXred;
-        int16_t deltaYred;
-        int16_t deltaXgreen;
-        int16_t deltaYgreen;
-        int16_t deltaXblue;
-        int16_t deltaYblue;
+        int16_t deltaXred = 0;
+        int16_t deltaYred = 0;
+        int16_t deltaXgreen = 0;
+        int16_t deltaYgreen = 0;
+        int16_t deltaXblue = 0;
+        int16_t deltaYblue = 0;
 
         /* first column */
         if((idx % offset) == 0)
@@ -91,6 +92,8 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx].red);
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx].blue);
+	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+            deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
         }
         /* last column */
         else if((idx % offset) == (offset - 1))
@@ -101,6 +104,8 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx].red - in_pixels[idx-offset].red);
             deltaYgreen = (int16_t)(in_pixels[idx].green - in_pixels[idx-offset].green);
             deltaYblue = (int16_t)(in_pixels[idx].blue - in_pixels[idx-offset].blue);
+	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+            deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
         }
         // gradients where NOT edge
         else
@@ -111,9 +116,11 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx-offset].red);
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx-offset].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx-offset].blue);
-        }
-        deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
         deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
+        }
+        //deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+        //deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
     }
 }
 
@@ -377,12 +384,14 @@ void cu_test_gradient(pixel_t *buf0, pixel_channel_t_signed *deltaX_gray, pixel_
     pixel_t *in_pixels;
     pixel_channel_t_signed *deltaX;
     pixel_channel_t_signed *deltaY;
-
-    cudaMalloc((void**) &in_pixels, sizeof(pixel_channel_t)*rows*cols); 
+    
+    printf("rows: %d\n", rows);
+    printf("columns: %d\n", cols);
+    cudaMalloc((void**) &in_pixels, sizeof(pixel_t)*rows*cols); 
     cudaMalloc((void**) &deltaX, sizeof(pixel_channel_t_signed)*rows*cols);
     cudaMalloc((void**) &deltaY, sizeof(pixel_channel_t_signed)*rows*cols);
 
-    cudaMemcpy(in_pixels, buf0, rows*cols*sizeof(pixel_channel_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(in_pixels, buf0, rows*cols*sizeof(pixel_t), cudaMemcpyHostToDevice);
 
     cu_compute_intensity_gradient<<<(rows*cols)/1024, 1024>>>(in_pixels, deltaX, deltaY, rows, cols);
 
@@ -498,6 +507,9 @@ void cu_detect_edges(pixel_t *orig_pixels, int rows, int cols, double kernel[KER
     //pixel_channel_t t_low = 0xF5;
     //cu_apply_hysteresis<<<(rows*cols)/1024, 1024>>>(out_pixels, in_pixels, t_high, t_low, rows, cols);
 
+    //Testing gradient
+    cu_test_gradient(orig_pixels, deltaX_gray_h, deltaY_gray_h, rows, cols);
+    
     /* copy blurred pixels from GPU device back to host as out_pixels*/
     //cudaMemcpy(orig_pixels, out_pixels, input_pixel_length * sizeof(pixel_t), cudaMemcpyDeviceToHost);
     //out_pixels_test
