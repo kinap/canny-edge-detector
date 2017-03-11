@@ -12,13 +12,13 @@
 #define RGB2GRAY_CONST_ARR_SIZE 3
 
 __global__
-void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols, double *in_kernel) 
+void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols, double *in_kernel)
 {
     //copy kernel array from global memory to a shared array
     __shared__ double kernel[KERNEL_SIZE][KERNEL_SIZE];
     for (int i = 0; i < KERNEL_SIZE; ++i) {
         for (int j = 0; j < KERNEL_SIZE; ++j) {
-            kernel[i][j] = in_kernel[i*KERNEL_SIZE + j];
+            kernel[i][j] = in_kernel[i * KERNEL_SIZE + j];
         }
     }
     
@@ -92,8 +92,6 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx].red);
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx].blue);
-	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
-            deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
         }
         /* last column */
         else if((idx % offset) == (offset - 1))
@@ -104,10 +102,8 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx].red - in_pixels[idx-offset].red);
             deltaYgreen = (int16_t)(in_pixels[idx].green - in_pixels[idx-offset].green);
             deltaYblue = (int16_t)(in_pixels[idx].blue - in_pixels[idx-offset].blue);
-	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
-            deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
         }
-        // gradients where NOT edge
+        /* gradients where NOT edge */
         else
         {
             deltaXred = (int16_t)(in_pixels[idx+1].red - in_pixels[idx-1].red);
@@ -116,11 +112,9 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
             deltaYred = (int16_t)(in_pixels[idx+offset].red - in_pixels[idx-offset].red);
             deltaYgreen = (int16_t)(in_pixels[idx+offset].green - in_pixels[idx-offset].green);
             deltaYblue = (int16_t)(in_pixels[idx+offset].blue - in_pixels[idx-offset].blue);
-	    deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
-        deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
         }
-        //deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
-        //deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
+        deltaX_channel[idx] = (int16_t)(0.2989 * deltaXred + 0.5870 * deltaXgreen + 0.1140 * deltaXblue);
+        deltaY_channel[idx] = (int16_t)(0.2989 * deltaYred + 0.5870 * deltaYgreen + 0.1140 * deltaYblue); 
     }
 }
 
@@ -330,7 +324,7 @@ void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixe
 /// at the mask indices which are set.
 ///
 __global__
-void cu_hysteresis_high(unsigned *strong_edge_mask, pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
+void cu_hysteresis_high(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, unsigned *strong_edge_mask, 
                         pixel_channel_t t_high, unsigned img_height, unsigned img_width)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -385,8 +379,6 @@ void cu_test_gradient(pixel_t *buf0, pixel_channel_t_signed *deltaX_gray, pixel_
     pixel_channel_t_signed *deltaX;
     pixel_channel_t_signed *deltaY;
     
-    printf("rows: %d\n", rows);
-    printf("columns: %d\n", cols);
     cudaMalloc((void**) &in_pixels, sizeof(pixel_t)*rows*cols); 
     cudaMalloc((void**) &deltaX, sizeof(pixel_channel_t_signed)*rows*cols);
     cudaMalloc((void**) &deltaY, sizeof(pixel_channel_t_signed)*rows*cols);
@@ -461,7 +453,7 @@ void cu_test_hysteresis(pixel_channel_t *in, pixel_channel_t *out, unsigned rows
     cudaStreamCreate(&stream);
 
     /* launch kernels */
-    cu_hysteresis_high<<<(rows*cols)/1024, 1024, 0, stream>>>(idx_map, out_pixels, in_pixels, t_high, rows, cols);
+    cu_hysteresis_high<<<(rows*cols)/1024, 1024, 0, stream>>>(out_pixels, in_pixels, idx_map, t_high, rows, cols);
     cu_hysteresis_low<<<(rows*cols)/1024, 1024, 0, stream>>>(out_pixels, in_pixels, idx_map, t_low, rows, cols);
 
     /* copy blurred pixels from GPU device back to host as out_pixels*/
@@ -472,71 +464,60 @@ void cu_test_hysteresis(pixel_channel_t *in, pixel_channel_t *out, unsigned rows
     cudaFree(idx_map);
 }
 
-void cu_detect_edges(pixel_t *orig_pixels, int rows, int cols, double kernel[KERNEL_SIZE][KERNEL_SIZE]) 
+void cu_detect_edges(pixel_channel_t *final_pixels, pixel_t *orig_pixels, int rows, int cols, double kernel[KERNEL_SIZE][KERNEL_SIZE]) 
 {
-    pixel_t *in_pixels, *out_pixels;
-    int input_pixel_length = rows * cols;
-    float *RGB2GrayKernel;
-    float RGB2Gray[RGB2GRAY_CONST_ARR_SIZE] = {0.2989, 0.5870, 0.1140};
-    
-    pixel_channel_t *magnitude_v;
-    pixel_channel_t_signed *deltaX_gray;
-    pixel_channel_t_signed *deltaY_gray;
-    pixel_channel_t *magnitude_v_h;
-    pixel_channel_t_signed *deltaX_gray_h;
-    pixel_channel_t_signed *deltaY_gray_h;
-    pixel_t *out_pixels_test;
-    pixel_channel_t *out_channel_test;
+    /* kernel execution configuration parameters */
+    int num_blks = (rows * cols) / 1024;
+    int thd_per_blk = 1024;
+    int grid = 0;
+    pixel_channel_t t_high = 0xFCC;
+    pixel_channel_t t_low = 0xF5;
 
-    out_pixels_test = (pixel_t*) std::malloc(input_pixel_length*sizeof(pixel_t));
-    out_channel_test = (pixel_channel_t*) std::malloc(input_pixel_length*sizeof(pixel_channel_t));
-    magnitude_v_h = (pixel_channel_t*) std::malloc(input_pixel_length*sizeof(pixel_channel_t));
-    deltaX_gray_h = (pixel_channel_t_signed*) std::malloc(input_pixel_length*sizeof(pixel_channel_t_signed));
-    deltaY_gray_h = (pixel_channel_t_signed*) std::malloc(input_pixel_length*sizeof(pixel_channel_t_signed));
+    /* device buffers */ 
+    pixel_t *in, *out;
+    pixel_channel_t *single_channel_buf0;
+    pixel_channel_t *single_channel_buf1;
+    pixel_channel_t_signed *deltaX;
+    pixel_channel_t_signed *deltaY;
+    double *d_blur_kernel;
+    unsigned *idx_map;
 
     /* allocate device memory */
-    cudaMalloc((void**) &in_pixels, input_pixel_length*sizeof(pixel_t));
-    cudaMalloc((void**) &out_pixels, input_pixel_length*sizeof(pixel_t));
-    cudaMalloc((void**) &magnitude_v, sizeof(pixel_channel_t)*input_pixel_length); 
-    cudaMalloc((void**) &deltaX_gray, sizeof(pixel_channel_t_signed)*input_pixel_length);
-    cudaMalloc((void**) &deltaY_gray, sizeof(pixel_channel_t_signed)*input_pixel_length);
-    cudaMalloc((void**) &RGB2GrayKernel, RGB2GRAY_CONST_ARR_SIZE*sizeof(float));
+    cudaMalloc((void**) &in, sizeof(pixel_t)*rows*cols); 
+    cudaMalloc((void**) &out, sizeof(pixel_t)*rows*cols); 
+    cudaMalloc((void**) &single_channel_buf0, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &single_channel_buf1, sizeof(pixel_channel_t)*rows*cols); 
+    cudaMalloc((void**) &deltaX, sizeof(pixel_channel_t_signed)*rows*cols);
+    cudaMalloc((void**) &deltaY, sizeof(pixel_channel_t_signed)*rows*cols);
+    cudaMalloc((void**) &idx_map, sizeof(idx_map[0])*rows*cols);
+    cudaMalloc((void**) &d_blur_kernel, sizeof(d_blur_kernel[0])*KERNEL_SIZE*KERNEL_SIZE);
 
-    //cu_apply_gaussian_filter<<<(rows*cols)/1024, 1024>>>(in_pixels, out_pixels, rows, cols, cudaBlurKernel);
-    //pixel_channel_t t_high = 0xFCC;
-    //pixel_channel_t t_low = 0xF5;
-    //cu_apply_hysteresis<<<(rows*cols)/1024, 1024>>>(out_pixels, in_pixels, t_high, t_low, rows, cols);
+    /* data transfer image pixels to device */
+    cudaMemcpy(in, orig_pixels, rows*cols*sizeof(pixel_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_blur_kernel, kernel, sizeof(d_blur_kernel[0])*KERNEL_SIZE*KERNEL_SIZE, cudaMemcpyHostToDevice);
 
-    //Testing gradient
-    cu_test_gradient(orig_pixels, deltaX_gray_h, deltaY_gray_h, rows, cols);
-    
-    /* copy blurred pixels from GPU device back to host as out_pixels*/
-    //cudaMemcpy(orig_pixels, out_pixels, input_pixel_length * sizeof(pixel_t), cudaMemcpyDeviceToHost);
-    //out_pixels_test
-    cudaMemcpy(out_channel_test, deltaX_gray_h, input_pixel_length * sizeof(pixel_channel_t), cudaMemcpyDeviceToHost);
-    for(int i = 0; i < input_pixel_length; i++)
-    {
-        out_pixels_test[i].red = (int16_t)out_channel_test[i];
-        out_pixels_test[i].green = (int16_t)out_channel_test[i];
-        out_pixels_test[i].blue = (int16_t)out_channel_test[i];
-    }
-    memcpy(orig_pixels, out_pixels_test, input_pixel_length * sizeof(pixel_t)); 
-    //std::free(blurKernel);
-    //cudaFree(cudaBlurKernel);
-    cudaFree(in_pixels);
-    cudaFree(out_pixels);
-    cudaFree(magnitude_v);
-    cudaFree(deltaX_gray);
-    cudaFree(deltaY_gray);
-    std::free(out_pixels_test);
-    std::free(out_channel_test);
-    std::free(magnitude_v_h);
-    std::free(deltaX_gray_h);
-    std::free(deltaY_gray_h);
-    
-    //cudaFree(threshold_pixels);
-    //cudaFree(out_pixels_test);
-    //delete [] out_pixels_test;
-    //delete [] out_channel_test;
+    /* run canny edge detection core - CUDA kernels */
+    /* use streams to ensure the kernels are in the same task */
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+    cu_apply_gaussian_filter<<<num_blks, thd_per_blk, grid, stream>>>(in, out, rows, cols, d_blur_kernel);
+    cu_compute_intensity_gradient<<<num_blks, thd_per_blk, grid, stream>>>(out, deltaX, deltaY, rows, cols);
+    cu_magnitude<<<num_blks, thd_per_blk, grid, stream>>>(deltaX, deltaY, single_channel_buf0, rows, cols);
+    cu_suppress_non_max<<<num_blks, thd_per_blk, grid, stream>>>(single_channel_buf0, deltaX, deltaY, single_channel_buf1, rows, cols);
+    cu_hysteresis_high<<<num_blks, thd_per_blk, grid, stream>>>(single_channel_buf0, single_channel_buf1, idx_map, t_high, rows, cols);
+    cu_hysteresis_low<<<num_blks, thd_per_blk, grid, stream>>>(single_channel_buf0, single_channel_buf1, idx_map, t_low, rows, cols);
+
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(final_pixels, single_channel_buf0, rows*cols*sizeof(pixel_channel_t), cudaMemcpyDeviceToHost);
+
+    cudaFree(in);
+    cudaFree(out);
+    cudaFree(single_channel_buf0);
+    cudaFree(single_channel_buf1);
+    cudaFree(deltaX);
+    cudaFree(deltaY);
+    cudaFree(idx_map);
+    cudaFree(d_blur_kernel);
 }
 

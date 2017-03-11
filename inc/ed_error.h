@@ -4,6 +4,7 @@
 
 enum ed_err_codes {
     ED_SUCCESS = 0,
+    ED_PARSE_ERR= 1,
     ED_UNKNOWN_FAILURE,
 };
 

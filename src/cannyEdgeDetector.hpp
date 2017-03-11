@@ -33,6 +33,7 @@ class CannyEdgeDetector : public EdgeDetector
         //void cu_apply_hysteresis(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, pixel_channel_t hi_thld, pixel_channel_t lo_thld);
 
         /* helper functions */
+        void populate_blur_kernel(double out_kernel[KERNEL_SIZE][KERNEL_SIZE]);
         void trace_immed_neighbors(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, unsigned idx, pixel_channel_t t_low);
 
         /* member variables */

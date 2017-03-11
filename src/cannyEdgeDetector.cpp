@@ -22,6 +22,40 @@ CannyEdgeDetector::~CannyEdgeDetector(void)
 }
 
 ///
+/// \brief Helpfer function to create convolutional kernel for gaussian blur.
+///
+void CannyEdgeDetector::populate_blur_kernel(double out_kernel[KERNEL_SIZE][KERNEL_SIZE])
+{
+    double scaleVal = 1;
+    double stDev = (double)KERNEL_SIZE/3;
+
+    for (int i = 0; i < KERNEL_SIZE; ++i) {
+        for (int j = 0; j < KERNEL_SIZE; ++j) {
+            double xComp = pow((i - KERNEL_SIZE/2), 2);
+            double yComp = pow((j - KERNEL_SIZE/2), 2);
+
+            double stDevSq = pow(stDev, 2);
+            double pi = M_PI;
+
+            //calculate the value at each index of the Kernel
+            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
+            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
+
+            //populate Kernel
+            out_kernel[i][j] = kernelVal;
+
+            if (i==0 && j==0) 
+            {
+                scaleVal = out_kernel[0][0];
+            }
+
+            //normalize Kernel
+            out_kernel[i][j] = out_kernel[i][j] / scaleVal;
+        }
+    }
+}
+
+///
 /// \brief Runs the canny edge detection algorithm on an image represented by
 /// the image manager instance this edge detection instance was constructed with.
 ///
@@ -32,107 +66,64 @@ void CannyEdgeDetector::detect_edges(bool serial)
     int rows = m_image_mgr->getImgHeight();
     int cols = m_image_mgr->getImgWidth();
 
-    //create convolution kernel for Gaussian Blur
     double kernel[KERNEL_SIZE][KERNEL_SIZE];
-    double stDev;
-    double scaleVal;
-    int i;
-    int j;
+    populate_blur_kernel(kernel);
 
-    //populate Convolution Kernel
-    stDev = (double)KERNEL_SIZE/3;
+    pixel_t *rgb_buf = new pixel_t[input_pixel_length];
+    pixel_channel_t *single_channel_buf0 = new pixel_channel_t[input_pixel_length]; 
 
-    scaleVal = 1;
-    for (i = 0; i < KERNEL_SIZE; ++i) {
-        for (j = 0; j < KERNEL_SIZE; ++j) {
-            double xComp = pow((i - KERNEL_SIZE/2), 2);
-            double yComp = pow((j - KERNEL_SIZE/2), 2);
-
-            double stDevSq = pow(stDev, 2);
-            double pi = M_PI;
-
-            //calculate the value at each index of the Kernel
-            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
-            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
-
-            //populate Kernel
-            kernel[i][j] = kernelVal;
-
-            if (i==0 && j==0) 
-            {
-                scaleVal = kernel[0][0];
-            }
-
-            //normalize Kernel
-            kernel[i][j] = kernel[i][j] / scaleVal;
-        }
-    }
+    assert(nullptr != rgb_buf);
+    assert(nullptr != single_channel_buf0);
 
     if (true == serial) {
-        std::cout << "  executing serially on CPU" << std::endl;
+        std::cout << "Executing serially on CPU" << std::endl;
+
         /* allocate intermeditate buffers */
-        pixel_t *buf0 = new pixel_t[input_pixel_length];
-        pixel_channel_t *magnitude_v = new pixel_channel_t[input_pixel_length]; 
+        pixel_channel_t *single_channel_buf1 = new pixel_channel_t[input_pixel_length];
+        pixel_channel_t *single_channel_buf2 = new pixel_channel_t[input_pixel_length];
         pixel_channel_t_signed *deltaX_gray = new pixel_channel_t_signed[input_pixel_length];
         pixel_channel_t_signed *deltaY_gray = new pixel_channel_t_signed[input_pixel_length];
-        pixel_channel_t *threshold_pixels = new pixel_channel_t[input_pixel_length];
-        pixel_channel_t *final_pixels = new pixel_channel_t[input_pixel_length];
-        pixel_t *final_image = new pixel_t[input_pixel_length];
 
-        assert(nullptr != buf0);
-        assert(nullptr != magnitude_v);
+        assert(nullptr != single_channel_buf1);
+        assert(nullptr != single_channel_buf2);
         assert(nullptr != deltaX_gray);
         assert(nullptr != deltaY_gray);
-        assert(nullptr != threshold_pixels);
-        assert(nullptr != final_pixels);
-        assert(nullptr != final_image);
 
         /* run canny edge detection core */
-        apply_gaussian_filter(buf0, orig_pixels, kernel);
-
-        //compute_intensity_gradient(buf0, deltaX_gray, deltaY_gray, input_pixel_length);
-        cu_test_gradient(buf0, deltaX_gray, deltaY_gray, rows, cols);
+        // you can swap the serial and parallel steps of the algorithm here for debug etc.
+        apply_gaussian_filter(rgb_buf, orig_pixels, kernel);
         
-        //cu_test_mag(deltaX_gray, deltaY_gray, magnitude_v, rows, cols);
-        magnitude(deltaX_gray, deltaY_gray, magnitude_v, input_pixel_length);
+        compute_intensity_gradient(rgb_buf, deltaX_gray, deltaY_gray, input_pixel_length);
+        //cu_test_gradient(rgb_buf, deltaX_gray, deltaY_gray, rows, cols);
 
-        //cu_test_nonmax(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels, rows, cols);
-        suppress_non_max(magnitude_v, deltaX_gray, deltaY_gray, threshold_pixels);
+        magnitude(deltaX_gray, deltaY_gray, single_channel_buf2, input_pixel_length);
+        //cu_test_mag(deltaX_gray, deltaY_gray, single_channel_buf2, rows, cols);
 
-        //cu_test_hysteresis(threshold_pixels, final_pixels, m_image_mgr->getImgHeight(), m_image_mgr->getImgWidth());
+        suppress_non_max(single_channel_buf2, deltaX_gray, deltaY_gray, single_channel_buf1);
+        //cu_test_nonmax(single_channel_buf2, deltaX_gray, deltaY_gray, single_channel_buf1, rows, cols);
+
         pixel_channel_t hi = 0xFCC;
         pixel_channel_t lo = 0xF5;
-        apply_hysteresis(final_pixels, threshold_pixels, hi, lo);
+        apply_hysteresis(single_channel_buf0, single_channel_buf1, hi, lo);
+        //cu_test_hysteresis(single_channel_buf1, single_channel_buf0, rows, cols);
 
-        /* convert single channel to grayscale final image */
-        unsigned idx = 0;
-        unsigned offset = m_image_mgr->getImgWidth();
-        unsigned parser_length = m_image_mgr->getImgHeight();
-     
-        for(unsigned i = 0; i < parser_length; ++i) {
-            for(unsigned j = 0; j < offset; ++j, ++idx) {
-                final_image[idx].red = final_pixels[idx];
-                final_image[idx].green = final_pixels[idx];
-                final_image[idx].blue = final_pixels[idx];
-            }
-        }
-
-        /* copy edge detected image back into image mgr class so we can write it out later */
-        memcpy(orig_pixels, final_image, input_pixel_length * sizeof(pixel_t));
-
-        delete [] buf0;
-        delete [] magnitude_v;
-        delete [] deltaX_gray;
-        delete [] deltaY_gray;
-        delete [] threshold_pixels;
-        delete [] final_pixels;
-        delete [] final_image;
+        delete []single_channel_buf1;
+        delete []single_channel_buf2;
+        delete []deltaX_gray;
+        delete []deltaY_gray;
 
     } else { // GPGPU
-        std::cout << "  executing in parallel on GPU" << std::endl;
-        /* Copy pixels to device - results of each stage stored on GPU and passed to next kernel */
-        cu_detect_edges(orig_pixels, rows, cols, kernel);
+        std::cout << "Executing in parallel on GPU" << std::endl;
+        /* this is in a different file / function so we can compile it with nvcc, while this file is compiled by g++ */
+        cu_detect_edges(single_channel_buf0, orig_pixels, rows, cols, kernel);
     }
+
+    /* copy edge detected image back into image mgr class so we can write it out later */
+    single_channel_to_grayscale(rgb_buf, single_channel_buf0, rows, cols);
+    memcpy(orig_pixels, rgb_buf, input_pixel_length*sizeof(pixel_t));
+
+    delete []rgb_buf;
+    delete []single_channel_buf0;
 }
 
 ///
@@ -140,44 +131,6 @@ void CannyEdgeDetector::detect_edges(bool serial)
 ///
 void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_pixels, double kernel[KERNEL_SIZE][KERNEL_SIZE])
 {
-    /*
-    double kernel[KERNEL_SIZE][KERNEL_SIZE];
-    double stDev;
-    double scaleVal;
-    int i;
-    int j;
-
-    //populate Convolution Kernel
-    stDev = (double)KERNEL_SIZE/3;
-
-        std::cout <<std::dec<< stDev<< std::endl;
-
-    scaleVal = 1;
-    for (i = 0; i < KERNEL_SIZE; ++i) {
-        for (j = 0; j < KERNEL_SIZE; ++j) {
-            double xComp = pow((i - KERNEL_SIZE/2), 2);
-            double yComp = pow((j - KERNEL_SIZE/2), 2);
-
-            double stDevSq = pow(stDev, 2);
-            double pi = M_PI;
-
-            //calculate the value at each index of the Kernel
-            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
-            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
-
-            //populate Kernel
-            kernel[i][j] = kernelVal;
-
-            if (i==0 && j==0) 
-            {
-                scaleVal = kernel[0][0];
-            }
-
-            //normalize Kernel
-            kernel[i][j] = kernel[i][j] / scaleVal;
-        }
-    }*/
-
     int rows = m_image_mgr->getImgHeight();
     int cols = m_image_mgr->getImgWidth();
     double kernelSum;

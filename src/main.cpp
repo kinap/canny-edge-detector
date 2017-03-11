@@ -21,6 +21,14 @@ int main(int argc, char** argv)
         exit(rc);
     }
 
+    /* sanity checks */
+    if (0 == args.inFile.compare(args.outFile)) {
+        std::cerr << "Input and output file names must be different!" << std::endl;
+        exit(ED_PARSE_ERR);
+    }
+
+    std::cout << "Canny Edge Detection" << std::endl;
+
     /* Instantiate our image manager */
     std::shared_ptr<ImgMgr> img_mgr = std::make_shared<ImgMgr>(*argv);
 
@@ -35,7 +43,7 @@ int main(int argc, char** argv)
 
     /* write results */
     img_mgr->write_image(args.outFile);
-    std::cout << "finished image" << std::endl;
+    std::cout << "Edge detection complete" << std::endl;
 
     return ED_SUCCESS;
 }
