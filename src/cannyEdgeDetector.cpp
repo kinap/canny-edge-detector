@@ -78,8 +78,6 @@ void CannyEdgeDetector::detect_edges(bool serial)
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     if (true == serial) {
-        std::cout << "Executing serially on CPU" << std::endl;
-
         /* allocate intermeditate buffers */
         pixel_channel_t *single_channel_buf1 = new pixel_channel_t[input_pixel_length];
         pixel_channel_t *single_channel_buf2 = new pixel_channel_t[input_pixel_length];
@@ -115,14 +113,13 @@ void CannyEdgeDetector::detect_edges(bool serial)
         delete []deltaY_gray;
 
     } else { // GPGPU
-        std::cout << "Executing in parallel on GPU" << std::endl;
         /* this is in a different file / function so we can compile it with nvcc, while this file is compiled by g++ */
         cu_detect_edges(single_channel_buf0, orig_pixels, rows, cols, kernel);
     }
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "Elapsed time: " << duration << " ms" << std::endl;
+    std::cout << "Elapsed time: " << duration << " us" << std::endl;
 
     /* copy edge detected image back into image mgr class so we can write it out later */
     single_channel_to_grayscale(rgb_buf, single_channel_buf0, rows, cols);

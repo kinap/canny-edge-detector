@@ -28,6 +28,11 @@ int main(int argc, char** argv)
     }
 
     std::cout << "Canny Edge Detection" << std::endl;
+    if (true == args.serial) {
+        std::cout << "Executing serially on CPU" << std::endl;
+    } else {
+        std::cout << "Executing in parallel on GPU" << std::endl;
+    }
 
     /* Instantiate our image manager */
     std::shared_ptr<ImgMgr> img_mgr = std::make_shared<ImgMgr>(*argv);
