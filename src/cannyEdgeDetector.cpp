@@ -407,13 +407,17 @@ void CannyEdgeDetector::apply_hysteresis(pixel_channel_t *out_pixels, pixel_chan
         for(unsigned j = 1; j < offset - 1; j++) {
             unsigned t = (m_image_mgr->getImgWidth() * i) + j;
             /* if our input is above the high threshold and the output hasn't already marked it as an edge */
-            if ((in_pixels[t] > t_high) && (out_pixels[t] != m_edge)) {
-                /* mark as strong edge */
-                out_pixels[t] = m_edge;
+            if (out_pixels[t] != m_edge) {
+                if (in_pixels[t] > t_high) {
+                    /* mark as strong edge */
+                    out_pixels[t] = m_edge;
 
-                /* check 8 immediately surrounding neighbors 
-                 * if any of the neighbors are above the low threshold, preserve edge */
-                trace_immed_neighbors(out_pixels, in_pixels, t, t_low);
+                    /* check 8 immediately surrounding neighbors 
+                     * if any of the neighbors are above the low threshold, preserve edge */
+                    trace_immed_neighbors(out_pixels, in_pixels, t, t_low);
+                } else {
+                    out_pixels[t] = 0x0;
+                }
             }
         }
     }
