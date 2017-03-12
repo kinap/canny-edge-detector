@@ -2,6 +2,7 @@
 #include <iostream> // cout, cerr
 #include <assert.h> // assert
 #include <string.h> // memcpy
+#include <chrono> // time/clocks
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "cannyEdgeDetector.hpp"
@@ -75,6 +76,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
     assert(nullptr != rgb_buf);
     assert(nullptr != single_channel_buf0);
 
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     if (true == serial) {
         std::cout << "Executing serially on CPU" << std::endl;
 
@@ -117,6 +119,10 @@ void CannyEdgeDetector::detect_edges(bool serial)
         /* this is in a different file / function so we can compile it with nvcc, while this file is compiled by g++ */
         cu_detect_edges(single_channel_buf0, orig_pixels, rows, cols, kernel);
     }
+    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "Elapsed time: " << duration << " ms" << std::endl;
 
     /* copy edge detected image back into image mgr class so we can write it out later */
     single_channel_to_grayscale(rgb_buf, single_channel_buf0, rows, cols);
