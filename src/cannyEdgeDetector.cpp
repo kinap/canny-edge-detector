@@ -3,8 +3,10 @@
 #include <assert.h> // assert
 #include <string.h> // memcpy
 #include <chrono> // time/clocks
-#define _USE_MATH_DEFINES
 #include <math.h>
+#define _USE_MATH_DEFINES
+#define EDGE 0xFFFF
+#define NON_EDGE 0x0
 #include "cannyEdgeDetector.hpp"
 #include "canny.h"
 
@@ -12,48 +14,12 @@ CannyEdgeDetector::CannyEdgeDetector(std::shared_ptr<ImgMgr> image)
 : EdgeDetector(image)
 {
     /* a strong edge is the largest value a channel can hold */
-    /* e.g. 8 bit channel: (1 << 8) - 1 -> b1_0000_0000 - b1 -> 0_1111_1111 */
-    //unsigned max_val = (1 << image->getChannelDepth()) - 1;
-    m_edge = 0xFFFF;
+    m_edge = EDGE;
 }
 
 CannyEdgeDetector::~CannyEdgeDetector(void)
 {
 
-}
-
-///
-/// \brief Helpfer function to create convolutional kernel for gaussian blur.
-///
-void CannyEdgeDetector::populate_blur_kernel(double out_kernel[KERNEL_SIZE][KERNEL_SIZE])
-{
-    double scaleVal = 1;
-    double stDev = (double)KERNEL_SIZE/3;
-
-    for (int i = 0; i < KERNEL_SIZE; ++i) {
-        for (int j = 0; j < KERNEL_SIZE; ++j) {
-            double xComp = pow((i - KERNEL_SIZE/2), 2);
-            double yComp = pow((j - KERNEL_SIZE/2), 2);
-
-            double stDevSq = pow(stDev, 2);
-            double pi = M_PI;
-
-            //calculate the value at each index of the Kernel
-            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
-            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
-
-            //populate Kernel
-            out_kernel[i][j] = kernelVal;
-
-            if (i==0 && j==0) 
-            {
-                scaleVal = out_kernel[0][0];
-            }
-
-            //normalize Kernel
-            out_kernel[i][j] = out_kernel[i][j] / scaleVal;
-        }
-    }
 }
 
 ///
@@ -130,7 +96,7 @@ void CannyEdgeDetector::detect_edges(bool serial)
 }
 
 ///
-///This function is used to slightly blur the image to remove noise
+/// This function is used to slightly blur the image to remove noise and spurious edges.
 ///
 void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_pixels, double kernel[KERNEL_SIZE][KERNEL_SIZE])
 {
@@ -171,7 +137,7 @@ void CannyEdgeDetector::apply_gaussian_filter(pixel_t *out_pixels, pixel_t *in_p
 }
 
 ///
-/// \brief Compute gradient (first order derivative x and y)
+/// \brief Compute gradient (first order derivative x and y) of color contrast.
 ///
 void CannyEdgeDetector::compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel,unsigned max_pixel_cnt)
 {
@@ -387,9 +353,9 @@ void CannyEdgeDetector::suppress_non_max(pixel_channel_t *mag, pixel_channel_t_s
                     nms[t] = mag[t];
                 }
 
-            } // END OF ELSE (mag != 0)
-        } // END OF FOR(j)
-    } // END OF FOR(i)
+            }
+        }
+    }
 }
 
 ///
@@ -416,9 +382,43 @@ void CannyEdgeDetector::apply_hysteresis(pixel_channel_t *out_pixels, pixel_chan
                      * if any of the neighbors are above the low threshold, preserve edge */
                     trace_immed_neighbors(out_pixels, in_pixels, t, t_low);
                 } else {
-                    out_pixels[t] = 0x0;
+                    out_pixels[t] = NON_EDGE;
                 }
             }
+        }
+    }
+}
+
+///
+/// \brief Helpfer function to create convolutional kernel for gaussian blur.
+///
+void CannyEdgeDetector::populate_blur_kernel(double out_kernel[KERNEL_SIZE][KERNEL_SIZE])
+{
+    double scaleVal = 1;
+    double stDev = (double)KERNEL_SIZE/3;
+
+    for (int i = 0; i < KERNEL_SIZE; ++i) {
+        for (int j = 0; j < KERNEL_SIZE; ++j) {
+            double xComp = pow((i - KERNEL_SIZE/2), 2);
+            double yComp = pow((j - KERNEL_SIZE/2), 2);
+
+            double stDevSq = pow(stDev, 2);
+            double pi = M_PI;
+
+            //calculate the value at each index of the Kernel
+            double kernelVal = exp(-(((xComp) + (yComp)) / (2 * stDevSq)));
+            kernelVal = (1 / (sqrt(2 * pi)*stDev)) * kernelVal;
+
+            //populate Kernel
+            out_kernel[i][j] = kernelVal;
+
+            if (i==0 && j==0) 
+            {
+                scaleVal = out_kernel[0][0];
+            }
+
+            //normalize Kernel
+            out_kernel[i][j] = out_kernel[i][j] / scaleVal;
         }
     }
 }

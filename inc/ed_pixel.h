@@ -12,7 +12,7 @@ struct pixel_t {
     pixel_channel_t blue;
 
     /* Overloaded operators for comparing pixels */
-    // TODO re-evaluate only using red channel here
+    /* We only use red channel here, not sure if we need this */
     bool operator==(const pixel_t &rhs) {
         return (red == rhs.red);
     }

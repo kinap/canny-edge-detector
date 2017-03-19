@@ -13,7 +13,7 @@ EdgeDetector::~EdgeDetector(void)
 }
 
 ///
-/// \brief Convert single channel to grayscale 
+/// \brief Convert single channel to grayscale. 
 ///
 void EdgeDetector::single_channel_to_grayscale(pixel_t *out_grayscale, pixel_channel_t *in_pixels, unsigned rows, unsigned cols)
 {

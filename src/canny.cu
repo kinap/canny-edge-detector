@@ -4,13 +4,17 @@
 #include "canny.h"
 
 #define _USE_MATH_DEFINES
+#define RGB2GRAY_CONST_ARR_SIZE 3
 #define STRONG_EDGE 0xFFFF
 #define NON_EDGE 0x0
 
-// TODO nice viso c
+//*****************************************************************************************
+// CUDA Gaussian Filter Implementation
+//*****************************************************************************************
 
-#define RGB2GRAY_CONST_ARR_SIZE 3
-
+///
+/// \brief Apply gaussian filter. This is the CUDA kernel for applying a gaussian blur to an image.
+///
 __global__
 void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows, int cols, double *in_kernel)
 {
@@ -58,8 +62,12 @@ void cu_apply_gaussian_filter(pixel_t *in_pixels, pixel_t *out_pixels, int rows,
     }
 }
 
+//*****************************************************************************************
+// CUDA Intensity Gradient Implementation
+//*****************************************************************************************
+
 ///
-/// \brief Compute gradient (first order derivative x and y)
+/// \brief Compute gradient (first order derivative x and y). This is the CUDA kernel for taking the derivative of color contrasts in adjacent images.
 ///
 __global__
 void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *deltaX_channel, pixel_channel_t_signed *deltaY_channel, unsigned parser_length, unsigned offset)
@@ -118,6 +126,9 @@ void cu_compute_intensity_gradient(pixel_t *in_pixels, pixel_channel_t_signed *d
     }
 }
 
+//*****************************************************************************************
+// CUDA Gradient Magnitude Implementation
+//*****************************************************************************************
 
 ///
 /// \brief Compute magnitude of gradient(deltaX & deltaY) per pixel.
@@ -133,6 +144,10 @@ void cu_magnitude(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY
                             (double)deltaY[idx]*deltaY[idx]) + 0.5);
         }
 }
+
+//*****************************************************************************************
+// CUDA Non Maximal Suppression Implementation
+//*****************************************************************************************
 
 ///
 /// \brief Non Maximal Suppression
@@ -371,6 +386,9 @@ void cu_hysteresis_low(pixel_channel_t *out_pixels, pixel_channel_t *in_pixels, 
 
 //*****************************************************************************************
 // Test/Debug hooks for separate kernels
+// These generally aren't to be used, but can serve as drop-in replacements for any
+// particular step of the algorithm's serial implementation.
+// Useful for debugging individual kernels.
 //*****************************************************************************************
 
 void cu_test_gradient(pixel_t *buf0, pixel_channel_t_signed *deltaX_gray, pixel_channel_t_signed *deltaY_gray, unsigned rows, unsigned cols)
@@ -389,6 +407,10 @@ void cu_test_gradient(pixel_t *buf0, pixel_channel_t_signed *deltaX_gray, pixel_
 
     cudaMemcpy(deltaX_gray, deltaX, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
     cudaMemcpy(deltaY_gray, deltaY, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
+
+    cudaFree(in_pixels);
+    cudaFree(deltaX);
+    cudaFree(deltaY);
 }
 
 void cu_test_mag(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *out_pixel, unsigned rows, unsigned cols)
@@ -408,6 +430,9 @@ void cu_test_mag(pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY,
 
     cudaMemcpy(out_pixel, magnitude_v, rows*cols*sizeof(pixel_channel_t_signed), cudaMemcpyDeviceToHost);
 
+    cudaFree(magnitude_v);
+    cudaFree(deltaX_gray);
+    cudaFree(deltaY_gray);
 }
 
 void cu_test_nonmax(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_channel_t_signed *deltaY, pixel_channel_t *nms, unsigned rows, unsigned cols)
@@ -430,6 +455,10 @@ void cu_test_nonmax(pixel_channel_t *mag, pixel_channel_t_signed *deltaX, pixel_
 
     cudaMemcpy(nms, d_nms, rows*cols*sizeof(pixel_channel_t), cudaMemcpyDeviceToHost);
     
+    cudaFree(magnitude_v);
+    cudaFree(d_nms);
+    cudaFree(deltaX_gray);
+    cudaFree(deltaY_gray);
 }
 
 void cu_test_hysteresis(pixel_channel_t *in, pixel_channel_t *out, unsigned rows, unsigned cols)
@@ -463,6 +492,10 @@ void cu_test_hysteresis(pixel_channel_t *in, pixel_channel_t *out, unsigned rows
     cudaFree(out_pixels);
     cudaFree(idx_map);
 }
+
+//*****************************************************************************************
+// Entry point for serial program calling CUDA implementation
+//*****************************************************************************************
 
 void cu_detect_edges(pixel_channel_t *final_pixels, pixel_t *orig_pixels, int rows, int cols, double kernel[KERNEL_SIZE][KERNEL_SIZE]) 
 {
@@ -507,10 +540,13 @@ void cu_detect_edges(pixel_channel_t *final_pixels, pixel_t *orig_pixels, int ro
     cu_hysteresis_high<<<num_blks, thd_per_blk, grid, stream>>>(single_channel_buf0, single_channel_buf1, idx_map, t_high, rows, cols);
     cu_hysteresis_low<<<num_blks, thd_per_blk, grid, stream>>>(single_channel_buf0, single_channel_buf1, idx_map, t_low, rows, cols);
 
+    /* wait for everything to finish */
     cudaDeviceSynchronize();
 
+    /* copy result back to the host */
     cudaMemcpy(final_pixels, single_channel_buf0, rows*cols*sizeof(pixel_channel_t), cudaMemcpyDeviceToHost);
 
+    /* cleanup */
     cudaFree(in);
     cudaFree(out);
     cudaFree(single_channel_buf0);
