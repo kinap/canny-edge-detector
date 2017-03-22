@@ -1,4 +1,4 @@
-# Canny Edge Dectector
+# Canny Edge Detector
 Canny edge detector written in CUDA C++. Provides both serial and GPU implementations.
 
 # Getting Started
